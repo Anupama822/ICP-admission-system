@@ -1,0 +1,61 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+:root {
+    --dark-charcoal: #232323;
+    --white: #ffffff;
+    --highlight-heading-color: #9F0D1A;
+    --general-color: #676767;
+    --heading-color: #484848;
+    --btn-color: #8D2229;
+    --highlight-color: #971F20;
+    --background-color: #FBFBFB;
+    --hover-color: #f53d3d;
+    --accent-color: #971F20;
+}
+
+@theme {
+    --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    --color-icp-primary: #8D2229;
+    --color-icp-primary-hover: #f53d3d;
+    --color-icp-highlight: #971F20;
+    --color-icp-heading-highlight: #9F0D1A;
+    --color-icp-heading: #484848;
+    --color-icp-dark: #232323;
+    --color-icp-general: #676767;
+    --color-icp-bg: #FBFBFB;
+}
+
+/* Custom helper classes matching ICP Brand palette */
+.bg-icp-dark { background-color: #232323; }
+.bg-icp-bg { background-color: #FBFBFB; }
+.bg-icp-card { background-color: #FFFFFF; }
+.bg-icp-primary { background-color: #8D2229; }
+.bg-icp-highlight { background-color: #971F20; }
+.bg-icp-heading-highlight { background-color: #9F0D1A; }
+.bg-icp-hover { background-color: #f53d3d; }
+
+.text-icp-dark { color: #232323; }
+.text-icp-heading { color: #484848; }
+.text-icp-heading-highlight { color: #9F0D1A; }
+.text-icp-general { color: #676767; }
+.text-icp-primary { color: #8D2229; }
+.text-icp-highlight { color: #971F20; }
+
+.border-icp-primary { border-color: #8D2229; }
+.border-icp-highlight { border-color: #971F20; }
+.border-icp-dark { border-color: #232323; }
+.border-icp-light { border-color: #E2E8F0; }
+
+.btn-icp-primary {
+    background-color: #8D2229;
+    color: #FFFFFF;
+    transition: all 0.2s ease-in-out;
+}
+.btn-icp-primary:hover {
+    background-color: #f53d3d;
+}

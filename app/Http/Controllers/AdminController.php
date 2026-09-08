@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AdmissionYear;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -10,6 +11,45 @@ use Illuminate\Validation\Rule;
 class AdminController extends Controller
 {
     /**
+     * Show the admission year setup form.
+     */
+    public function showAdmissionYearSetup()
+    {
+        return view('admin.admission-year-setup');
+    }
+    public function getAddmissionYearCreate()
+    {
+        return view('admin.admisisonYears.create');
+    }
+
+    /**
+     * Store the active admission year.
+     */
+    public function storeAdmissionYear(Request $request)
+    {
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255', 'unique:admission_years,title'],
+            'year' => ['required', 'string', 'max:4'],
+        ]);
+
+        AdmissionYear::where('is_active', true)->update(['is_active' => false]);
+        AdmissionYear::create($validated + ['is_active' => true]);
+
+        return redirect()->route('admin.dashboard')->with('status', 'Admission year set up successfully.');
+    }
+
+    /**
+     * Activate an existing admission year and deactivate all others.
+     */
+    public function activateAdmissionYear(AdmissionYear $admissionYear)
+    {
+        AdmissionYear::where('is_active', true)->update(['is_active' => false]);
+        $admissionYear->update(['is_active' => true]);
+
+        return redirect()->back()->with('status', 'Academic year ' . $admissionYear->title . ' is now active.');
+    }
+
+    /**
      * Display Admin Dashboard.
      */
     public function index()
@@ -17,6 +57,9 @@ class AdminController extends Controller
         $staffMembers = User::where('role', 'staff')
             ->orderBy('created_at', 'desc')
             ->get();
+
+        $activeAcademicYear = AdmissionYear::where('is_active', true)->first();
+        $academicYears = AdmissionYear::orderBy('year', 'desc')->get();
 
         $stats = [
             'total_staff' => $staffMembers->count(),
@@ -27,7 +70,7 @@ class AdminController extends Controller
             'pending_verifications' => 42,
         ];
 
-        return view('admin.dashboard', compact('staffMembers', 'stats'));
+        return view('admin.dashboard', compact('staffMembers', 'stats', 'activeAcademicYear', 'academicYears'));
     }
 
     /**
@@ -35,6 +78,12 @@ class AdminController extends Controller
      */
     public function storeStaff(Request $request)
     {
+        $activeAcademicYear = AdmissionYear::where('is_active', true)->first();
+
+        if (!$activeAcademicYear) {
+            return back()->withErrors(['error' => 'Set an active academic year before creating new records.']);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],

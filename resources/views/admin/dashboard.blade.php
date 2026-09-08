@@ -14,8 +14,12 @@
             </div>
             <h1 class="text-2xl sm:text-3xl font-extrabold text-[#9F0D1A] tracking-tight">Admissions Control Center</h1>
             <p class="text-sm text-[#676767] mt-1">Manage staff accounts, monitor admission metrics, and oversee system operations.</p>
+            <div class="mt-3 inline-flex items-center gap-2 rounded-full bg-[#8D2229]/10 border border-[#8D2229]/20 px-3 py-1.5 text-xs font-bold text-[#8D2229]">
+                <span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
+                Active academic year: {{ $activeAcademicYear?->title ?? 'Not set' }}
+            </div>
         </div>
-
+    
         <div class="flex items-center gap-3">
             <button onclick="document.getElementById('addStaffModal').classList.remove('hidden')" 
                 class="px-4 py-2.5 bg-[#8D2229] hover:bg-[#f53d3d] text-white text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-2 focus:outline-none">

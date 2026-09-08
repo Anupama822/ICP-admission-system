@@ -10,10 +10,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     if (Auth::check()) {
-        return Auth::user()->isAdmin() 
-            ? redirect()->route('admin.dashboard') 
+        return Auth::user()->isAdmin()
+            ? redirect()->route('admin.dashboard')
             : redirect()->route('staff.dashboard');
     }
+
     return redirect()->route('login');
 });
 
@@ -27,15 +28,21 @@ Route::middleware('guest')->group(function () {
 Route::middleware(['auth', EnsureUserIsActive::class])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    // Admin Routes
+    Route::middleware(EnsureRole::class . ':admin')->group(function () {
+        Route::get('/admission-year/setup', [AdminController::class, 'showAdmissionYearSetup'])->name('admission-year.setup');
+        Route::get('/admission-year/create', [AdminController::class, 'getAddmissionYearCreate'])->name('admission-year.create');
+        Route::post('/admission-year/setup', [AdminController::class, 'storeAdmissionYear'])->name('admission-year.store');
+        Route::post('/admission-year/{admissionYear}/activate', [AdminController::class, 'activateAdmissionYear'])->name('admission-year.activate');
+    });
+
     Route::middleware(EnsureRole::class . ':admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
         Route::post('/staff', [AdminController::class, 'storeStaff'])->name('staff.store');
         Route::post('/staff/{user}/toggle-status', [AdminController::class, 'toggleStaffStatus'])->name('staff.toggle-status');
     });
 
-    // Staff Routes
     Route::middleware(EnsureRole::class . ':staff')->prefix('staff')->name('staff.')->group(function () {
         Route::get('/dashboard', [StaffController::class, 'index'])->name('dashboard');
     });
 });
+    

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AdmissionYear;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,8 +17,13 @@ class AuthController extends Controller
     {
         if (Auth::check()) {
             if (Auth::user()->isAdmin()) {
+                if (!AdmissionYear::where('is_active', true)->exists()) {
+                    return redirect()->route('admission-year.setup');
+                }
+
                 return redirect()->route('admin.dashboard');
             }
+
             return redirect()->route('staff.dashboard');
         }
 
@@ -52,6 +58,10 @@ class AuthController extends Controller
 
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
+
+        if (!AdmissionYear::where('is_active', true)->exists()) {
+            return redirect()->route('admission-year.setup')->with('status', 'Please set up the active admission year to continue.');
+        }
 
         if ($user->isAdmin()) {
             return redirect()->intended(route('admin.dashboard'))->with('status', 'Welcome back, ' . $user->name . '!');

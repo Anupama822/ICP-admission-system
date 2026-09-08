@@ -28,7 +28,7 @@ class DatabaseSeeder extends Seeder
 
         // Seed Sample Active Staff User
         User::updateOrCreate(
-            ['email' => 'staff@icp.edu.np'],
+            ['email' => 'aarav@icp.edu.np'],
             [
                 'name' => 'Aarav Shrestha',
                 'position' => 'Senior Admissions Counselor',

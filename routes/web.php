@@ -16,6 +16,7 @@ Route::get('/', function () {
     }
 
     return redirect()->route('login');
+
 });
 
 // Guest Routes

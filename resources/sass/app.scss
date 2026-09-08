@@ -1,0 +1,620 @@
+// ─── Google Fonts ─────────────────────────────────────────────────────────────
+@import url('https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700,800&display=swap');
+
+// ─── Variables (must come before Bootstrap) ───────────────────────────────────
+@import 'variables';
+
+// ─── Bootstrap ────────────────────────────────────────────────────────────────
+@import 'bootstrap/scss/bootstrap';
+
+// =============================================================================
+// ICP BRAND THEME OVERRIDES
+// =============================================================================
+
+// ─── CSS Custom Properties ────────────────────────────────────────────────────
+:root {
+  --white:                   #fff;
+  --highlight-heading-color: #9F0D1A;
+  --general-color:           #676767;
+  --heading-color:           #484848;
+  --btn-color:               #8D2229;
+  --highlight-color:         #971F20;
+  --background-color:        #FBFBFB;
+  --hover-color:             #bd1313;
+  accent-color:              #971F20;
+
+  // Derived shades
+  --icp-crimson-10:  rgba(141, 34, 41, 0.10);
+  --icp-crimson-20:  rgba(141, 34, 41, 0.20);
+  --icp-crimson-90:  #6e1a20;
+}
+
+// ─── Global Base ──────────────────────────────────────────────────────────────
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  background-color: var(--background-color) !important;
+  color: var(--heading-color);
+}
+
+// ─── Navbar / Top Bar ─────────────────────────────────────────────────────────
+.app-header {
+  background-color: #fff !important;
+  border-bottom: 1px solid #f0e6e7 !important;
+  box-shadow: 0 1px 8px rgba(141,34,41,.08) !important;
+
+  .navbar-brand {
+    color: var(--btn-color) !important;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+
+    b { color: var(--highlight-heading-color); }
+  }
+
+  .nav-link {
+    color: var(--heading-color) !important;
+    font-weight: 500;
+
+    &:hover {
+      color: var(--btn-color) !important;
+    }
+  }
+
+  // Hamburger toggle
+  .sidebar-toggler {
+    color: var(--btn-color) !important;
+  }
+}
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
+.app-sidebar {
+  // Background handled via adminlte css_variables_sidebar
+  border-right: none !important;
+
+  .sidebar-brand {
+    background-color: #8D2229 !important;
+    color: #fff !important;
+    font-weight: 800;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+  }
+
+  .nav-sidebar {
+    .nav-item {
+      .nav-link {
+        border-radius: 8px;
+        margin: 2px 8px;
+        padding: 0.5rem 0.75rem;
+        font-weight: 500;
+        font-size: 0.85rem;
+        transition: all .2s ease;
+
+        &:hover {
+          background-color: var(--lte-sidebar-hover-bg, #2d1316) !important;
+          color: #fff !important;
+        }
+
+        &.active {
+          background-color: var(--icp-btn, #8D2229) !important;
+          color: #fff !important;
+          box-shadow: 0 2px 8px rgba(141,34,41,.4);
+        }
+      }
+    }
+
+    .nav-header {
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      color: var(--lte-sidebar-header-color, #a07075) !important;
+      padding: 1rem 1rem 0.35rem;
+    }
+  }
+}
+
+// ─── Bootstrap Primary Buttons → ICP Crimson ─────────────────────────────────
+.btn-primary {
+  background-color: var(--btn-color) !important;
+  border-color: var(--btn-color) !important;
+  color: #fff !important;
+  font-weight: 600;
+
+  &:hover, &:focus {
+    background-color: var(--hover-color) !important;
+    border-color: var(--hover-color) !important;
+    box-shadow: 0 4px 12px rgba(141,34,41,.35) !important;
+  }
+
+  &:active {
+    background-color: var(--icp-crimson-90) !important;
+  }
+}
+
+// Focus ring override for all form elements
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--btn-color) !important;
+  box-shadow: 0 0 0 0.2rem var(--icp-crimson-20) !important;
+}
+
+// ─── Auth / Login Page ────────────────────────────────────────────────────────
+.login-page,
+.register-page {
+  background: linear-gradient(135deg, #1a0a0b 0%, #3d1519 50%, #8D2229 100%) !important;
+  min-height: 100vh;
+
+  .login-box,
+  .register-box {
+    width: 420px;
+  }
+
+  .card {
+    border: none !important;
+    border-radius: 16px !important;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,.35) !important;
+  }
+
+  .card-header {
+    background: linear-gradient(135deg, #8D2229 0%, #971F20 100%) !important;
+    border-bottom: none !important;
+    padding: 2rem 1.75rem 1.5rem !important;
+    text-align: center;
+
+    .icp-login-logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.15);
+      border: 2px solid rgba(255,255,255,.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 0.75rem;
+      font-size: 1.75rem;
+      color: #fff;
+    }
+
+    h1.login-box-msg,
+    p.login-box-msg {
+      color: #fff !important;
+      margin: 0;
+    }
+
+    h1.login-box-msg {
+      font-size: 1.4rem;
+      font-weight: 800;
+    }
+
+    p.login-box-msg {
+      font-size: 0.8rem;
+      opacity: 0.8;
+      margin-top: 0.25rem !important;
+    }
+  }
+
+  .card-body {
+    padding: 1.75rem !important;
+    background: #fff;
+  }
+
+  .input-group-text {
+    background: var(--icp-crimson-10);
+    border-color: #e5e7eb;
+    color: var(--btn-color);
+  }
+
+  .form-control {
+    border-color: #e5e7eb;
+    font-size: 0.9rem;
+  }
+
+  .card-footer {
+    background: #fafafa !important;
+    border-top: 1px solid #f0e6e7 !important;
+    padding: 1rem 1.75rem !important;
+    font-size: 0.8rem;
+    color: var(--general-color);
+    text-align: center;
+  }
+}
+
+// ─── Content Wrapper ──────────────────────────────────────────────────────────
+.app-main .app-content {
+  background-color: var(--background-color);
+}
+
+// ─── ICP Stat Cards ───────────────────────────────────────────────────────────
+.icp-stat-card {
+  border: 1px solid #f0e6e7;
+  border-radius: 16px;
+  padding: 1.25rem;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+  transition: box-shadow .2s, transform .2s;
+
+  &:hover {
+    box-shadow: 0 6px 20px rgba(141,34,41,.12);
+    transform: translateY(-1px);
+  }
+
+  .stat-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--general-color);
+  }
+
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1rem;
+  }
+
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #232323;
+    line-height: 1;
+  }
+
+  .stat-sub {
+    font-size: 0.75rem;
+    color: var(--general-color);
+    border-top: 1px solid #f3f4f6;
+    padding-top: 0.6rem;
+    margin-top: 0.75rem;
+  }
+}
+
+.icp-icon-crimson {
+  background: var(--icp-crimson-10);
+  border: 1px solid var(--icp-crimson-20);
+  color: var(--btn-color);
+}
+
+.icp-icon-emerald {
+  background: rgba(16,185,129,.1);
+  border: 1px solid rgba(16,185,129,.2);
+  color: #059669;
+}
+
+.icp-icon-amber {
+  background: rgba(245,158,11,.1);
+  border: 1px solid rgba(245,158,11,.2);
+  color: #d97706;
+}
+
+.icp-icon-blue {
+  background: rgba(59,130,246,.1);
+  border: 1px solid rgba(59,130,246,.2);
+  color: #2563eb;
+}
+
+.icp-icon-purple {
+  background: rgba(139,92,246,.1);
+  border: 1px solid rgba(139,92,246,.2);
+  color: #7c3aed;
+}
+
+// ─── ICP Section Card ─────────────────────────────────────────────────────────
+.icp-card {
+  background: #fff;
+  border: 1px solid #f0e6e7;
+  border-radius: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+  overflow: hidden;
+
+  .icp-card-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #f3f4f6;
+    background: rgba(251,251,251,.7);
+
+    .icp-card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--heading-color);
+      margin: 0;
+    }
+
+    .icp-card-subtitle {
+      font-size: 0.75rem;
+      color: var(--general-color);
+      margin: 0.15rem 0 0;
+    }
+  }
+}
+
+// ─── ICP Table ────────────────────────────────────────────────────────────────
+.icp-table {
+  font-size: 0.875rem;
+
+  thead th {
+    background: #232323 !important;
+    color: #fff !important;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    padding: 1rem 1.25rem;
+    border: none !important;
+  }
+
+  tbody tr {
+    transition: background .15s;
+
+    &:hover {
+      background: rgba(251,251,251,.9) !important;
+    }
+
+    td {
+      padding: 0.875rem 1.25rem;
+      vertical-align: middle;
+      border-color: #f3f4f6;
+    }
+  }
+}
+
+// ─── Badges ───────────────────────────────────────────────────────────────────
+.icp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+
+  .icp-badge-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  &.badge-active {
+    background: rgba(16,185,129,.12);
+    color: #065f46;
+    border: 1px solid rgba(16,185,129,.25);
+    .icp-badge-dot { background: #10b981; }
+  }
+
+  &.badge-inactive {
+    background: rgba(239,68,68,.1);
+    color: #991b1b;
+    border: 1px solid rgba(239,68,68,.2);
+    .icp-badge-dot { background: #ef4444; }
+  }
+
+  &.badge-pending {
+    background: rgba(245,158,11,.1);
+    color: #92400e;
+    border: 1px solid rgba(245,158,11,.2);
+  }
+
+  &.badge-success {
+    background: rgba(16,185,129,.12);
+    color: #065f46;
+    border: 1px solid rgba(16,185,129,.25);
+  }
+
+  &.badge-info {
+    background: rgba(59,130,246,.1);
+    color: #1e40af;
+    border: 1px solid rgba(59,130,246,.2);
+  }
+
+  &.badge-purple {
+    background: rgba(139,92,246,.1);
+    color: #5b21b6;
+    border: 1px solid rgba(139,92,246,.2);
+  }
+}
+
+// ─── ICP Welcome Banner ───────────────────────────────────────────────────────
+.icp-welcome-banner {
+  background: linear-gradient(135deg, #232323 0%, #8D2229 60%, #971F20 100%);
+  border-radius: 16px;
+  color: #fff;
+  padding: 1.75rem 2rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(141,34,41,.25);
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -40px;
+    right: -40px;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.04);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -60px;
+    right: 80px;
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.035);
+  }
+
+  .icp-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+    border: 2px solid rgba(255,255,255,.3);
+    object-fit: cover;
+    box-shadow: 0 4px 12px rgba(0,0,0,.2);
+  }
+}
+
+// ─── ICP Page Header ──────────────────────────────────────────────────────────
+.icp-page-header {
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #f0e6e7;
+  margin-bottom: 1.5rem;
+
+  .icp-breadcrumb {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--highlight-color);
+  }
+
+  h1 {
+    font-size: 1.7rem;
+    font-weight: 800;
+    color: var(--highlight-heading-color);
+    letter-spacing: -0.5px;
+    margin: 0.15rem 0 0.25rem;
+  }
+
+  .icp-page-subtitle {
+    font-size: 0.82rem;
+    color: var(--general-color);
+  }
+}
+
+// ─── Dashboard Active Year Pill ────────────────────────────────────────────────
+.icp-year-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--icp-crimson-10);
+  border: 1px solid var(--icp-crimson-20);
+  color: var(--btn-color);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+
+  .icp-year-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #10b981;
+    flex-shrink: 0;
+  }
+}
+
+// ─── Form Styling ─────────────────────────────────────────────────────────────
+.icp-form-card {
+  background: #fff;
+  border: 1px solid #f0e6e7;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 1px 6px rgba(0,0,0,.04);
+
+  .icp-form-header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #f3f4f6;
+    background: linear-gradient(135deg, rgba(141,34,41,.04) 0%, rgba(255,255,255,0) 100%);
+
+    .form-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--icp-crimson-10);
+      border: 1px solid var(--icp-crimson-20);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--btn-color);
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+  }
+
+  .icp-form-body {
+    padding: 2rem;
+  }
+}
+
+// ─── ICP Log Item ─────────────────────────────────────────────────────────────
+.icp-log-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: var(--background-color);
+  border: 1px solid #f0e6e7;
+  font-size: 0.8rem;
+
+  .log-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .log-time {
+    margin-left: auto;
+    color: var(--general-color);
+    font-size: 0.72rem;
+    font-family: monospace;
+    white-space: nowrap;
+  }
+}
+
+// ─── Modals ───────────────────────────────────────────────────────────────────
+.icp-modal .modal-content {
+  border: none;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+
+  .modal-header {
+    border-bottom: 1px solid #f3f4f6;
+    padding: 1.25rem 1.5rem;
+
+    .modal-title {
+      font-weight: 800;
+      color: var(--highlight-heading-color);
+    }
+  }
+
+  .modal-body {
+    padding: 1.5rem;
+  }
+
+  .modal-footer {
+    border-top: 1px solid #f3f4f6;
+    padding: 1rem 1.5rem;
+  }
+}
+
+// ─── Alert Overrides ──────────────────────────────────────────────────────────
+.alert-success {
+  background: rgba(16,185,129,.08) !important;
+  border-color: rgba(16,185,129,.2) !important;
+  color: #065f46 !important;
+}
+
+.alert-danger {
+  background: rgba(239,68,68,.07) !important;
+  border-color: rgba(239,68,68,.2) !important;
+  color: #991b1b !important;
+}
+
+// ─── Scrollbar ────────────────────────────────────────────────────────────────
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(141,34,41,.25);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(141,34,41,.5);
+}

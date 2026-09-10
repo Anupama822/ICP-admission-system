@@ -11,7 +11,7 @@
             {{-- Header --}}
             <div class="icp-form-header d-flex align-items-center gap-3">
                 <div class="form-icon">
-                    <i class="fas fa-calendar-alt"></i>
+                    @svg('heroicon-o-calendar-days', 'icp-icon-lg')
                 </div>
                 <div>
                     <p class="mb-0" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--highlight-color)">
@@ -28,8 +28,10 @@
 
             {{-- Form --}}
             <div class="icp-form-body">
-                <form method="POST" action="{{ route('admission-year.store') }}">
+                <form method="POST" action="{{ route('admission-year.setup.store') }}">
                     @csrf
+
+                    @include('admin.templates.partials.errors')
 
                     <div class="row g-4 mb-4">
 
@@ -79,10 +81,9 @@
                     </div>
 
                     {{-- Info Note --}}
-                    <div class="d-flex gap-3 p-3 mb-4 rounded-3"
-                        style="background:rgba(141,34,41,.05);border:1px solid rgba(141,34,41,.12)">
-                        <i class="fas fa-info-circle mt-1 flex-shrink-0" style="color:var(--btn-color)"></i>
-                        <p class="mb-0 small" style="color:var(--heading-color);line-height:1.6">
+                    <div class="icp-note d-flex gap-3 p-3 mb-4 rounded-3">
+                        @svg('heroicon-m-information-circle', 'icp-icon-sm flex-shrink-0 mt-1')
+                        <p class="mb-0 small">
                             This admission year will be used as the active academic period
                             throughout the admission management system.
                         </p>
@@ -91,8 +92,8 @@
                     {{-- Submit --}}
                     <div class="d-flex justify-content-end">
                         <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2 px-5 py-2">
-                            Set active admission year
-                            <i class="fas fa-arrow-right"></i>
+                            <span>Set active admission year</span>
+                            @svg('heroicon-m-arrow-right', 'icp-icon-sm')
                         </button>
                     </div>
 

@@ -9,36 +9,26 @@
         <div class="icp-form-card">
 
             {{-- Header --}}
-            <div class="icp-form-header d-flex align-items-center justify-content-between gap-3">
+            <div class="icp-form-header d-flex align-items-center justify-content-between gap-3 flex-wrap">
                 <div class="d-flex align-items-center gap-3">
                     <div class="form-icon">
-                        <svg class="icon-primary" width="20" height="20"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-                                d="M4 6h16M4 12h16M4 18h16"/>
-                        </svg>
+                        @svg($icon ?? 'heroicon-o-bars-3', 'icp-icon-lg')
                     </div>
                     <div>
-                        <h1 style="font-size:1.4rem;font-weight:800;color:var(--highlight-heading-color);margin:0;letter-spacing:-.3px">
-                            {{ $title }}
-                        </h1>
-                        @if(@$description)
-                        <p class="mb-0 small" style="color:var(--general-color);margin-top:.2rem">
-                            {{ $description }}
-                        </p>
-                        @endif
+                        <h1 class="icp-page-title">{{ $title }}</h1>
+                        @isset($description)
+                        <p class="mb-0 small icp-page-subtitle">{{ $description }}</p>
+                        @endisset
                     </div>
                 </div>
 
-                @if(!isset($hideCreate) || (isset($hideCreate) && $hideCreate === false))
+                @unless($hideCreate ?? false)
                 <a href="{{ route($route.'create') }}"
                     class="btn btn-primary d-inline-flex align-items-center gap-2 px-4 py-2">
-                    <i class="fas fa-plus"></i>
-                    <span>{{ @$add_button_name ?? 'Add new' }}</span>
+                    @svg('heroicon-m-plus', 'icp-icon-sm')
+                    <span>{{ $add_button_name ?? 'Add new' }}</span>
                 </a>
-                @endif
+                @endunless
             </div>
 
             <div class="icp-form-body">

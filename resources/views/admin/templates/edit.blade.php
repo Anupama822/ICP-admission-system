@@ -1,177 +1,53 @@
-@extends('adminlte::page')
-
+@extends('layouts.app')
 
 @section('title', 'Edit '.$title)
 
-@section('content_header')
-
-@stop
-
 @section('content')
-    <section class="content">
-        <div class="container-fluid">
-        <form class="form repeater" id="form" action="{{route($route.'update',$item->id)}}"
-        method="post" enctype="multipart/form-data">
-            <div class="row">
-                <!-- left column -->
-                <div class="col">
-                    <!-- general form elements -->
-                    <div class="card mt-4">
-                        <div class="d-flex justify-content-between align-items-center m-3">
-                            <div class="d-flex align-items-center">
-                                <a href="javascript:history.back();" class="btn btn-outline-gear rounded-lg btn-sm mr-2">
-                                    <i class="fas fa-arrow-left fa-sm"></i>
-                                </a>
-                                <h3 class="card-title ml-0 mb-0">{{$title}}</h3>
-                            </div>
-                            <button type="submit" class="btn btn-gear float-right">Update</button>
-                        </div>
-                        <!-- /.card-header -->
-                        <!-- form start -->
+<div class="row justify-content-center my-4">
+    <div class="col-12 col-md-10 col-lg-7">
 
-                            <div class="card-body">
-                                @csrf
-                                @method('PUT')
-                                @if ($errors->any())
-                                    @foreach ($errors->all() as $error)
-                                        <div class="alert alert-danger" role="alert">
-                                            {{$error}}
-                                        </div>
-                                    @endforeach
-                                @endif
-                                @yield('form_content')
+        <div class="icp-form-card">
 
-                            </div>
-                            <!-- <div class="m-3">
-
-                                <a href="javascript:history.back();" class="btn btn-default float-right">Cancel</a>
-                            </div> -->
-
-                    </div>
-                    <!-- /.card -->
-
+            {{-- Header --}}
+            <div class="icp-form-header d-flex align-items-center gap-3">
+                <a href="{{ route($route.'index') }}" class="btn icp-btn-icon" title="Back to {{ $title }}">
+                    @svg('heroicon-m-arrow-left', 'icp-icon-sm')
+                </a>
+                <div class="form-icon">
+                    @svg($icon ?? 'heroicon-o-pencil-square', 'icp-icon-lg')
                 </div>
-                <!--/.col (left) -->
+                <div>
+                    <h1 class="icp-page-title">Edit {{ $title }}</h1>
+                    @isset($description)
+                    <p class="mb-0 small icp-page-subtitle">{{ $description }}</p>
+                    @endisset
+                </div>
             </div>
-            <!-- /.row -->
-            </form>
-        </div><!-- /.container-fluid -->
-    </section>
-@endsection
-@section('js')
-    @yield('ext_js')
-    <script>
-        jQuery(document).ready(function () {
-            // $('#button_submit').click(
-            //     function (e) {
-            //                 var form = $('#form');
-            //                 if (!form.valid()) {
-            //                     return;
-            //                 }
-            //         form.submit();
-            //     }
-            // );
 
-            // $('#summernote').summernote()
-            //
-            // // CodeMirror
-            // CodeMirror.fromTextArea(document.getElementById("codeMirrorDemo"), {
-            //     mode: "htmlmixed",
-            //     theme: "monokai"
-            // });
+            <div class="icp-form-body">
+                <form method="POST" action="{{ route($route.'update', $item->id) }}" enctype="multipart/form-data">
+                    @csrf
+                    @method('PUT')
 
-            $('#summernote').summernote({
-                height: 400,
-                callbacks: {
-                    onImageUpload: function (files) {
-                        for (let i = 0; i < files.length; i++) {
-                            $.upload(files[i]);
-                        }
-                    },
-                    onMediaDelete : function(target) {
-                        const src = $(target[0]).attr('src');
-                        const imageId = $(target[0]).attr('data-id');
+                    @include('admin.templates.partials.errors')
 
-                        deleteFile(imageId);
-                    }
-                },
-            });
-            $('#summernote1').summernote({
-                height: 400,
-                callbacks: {
-                    onImageUpload: function (files) {
-                        for (let i = 0; i < files.length; i++) {
-                            $.upload(files[i]);
-                        }
-                    },
-                    onMediaDelete : function(target) {
-                        const src = $(target[0]).attr('src');
-                        const imageId = $(target[0]).attr('data-id');
+                    @yield('form_content')
 
-                        deleteFile(imageId);
-                    }
-                },
-            });
+                    {{-- Submit --}}
+                    <div class="d-flex justify-content-end gap-3">
+                        <a href="{{ route($route.'index') }}" class="btn icp-btn-muted px-4 py-2 fw-bold">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2 px-5 py-2">
+                            <span>Update {{ $title }}</span>
+                            @svg('heroicon-m-check', 'icp-icon-sm')
+                        </button>
+                    </div>
 
-            $.upload = function (file) {
-                let out = new FormData();
-                out.append("_token", "{{ csrf_token() }}")
-                out.append('file', file, file.name);
+                </form>
+            </div>
 
-                $.ajax({
-                    headers: {
-                        "X-CSRFToken": '{{csrf_field()}}'
-                    },
-                    method: 'POST',
-                    url: '{{route('uploader.store')}}',
-                    contentType: false,
-                    cache: false,
-                    processData: false,
-                    data: out,
-                    success: function (data) {
-                        if(data['status']){
-                            var url = data['data']['url'];
-                            var id = data['data']['id'];
-
-                            $('#summernote').summernote('insertImage', url, function ($image) {
-                                $image.attr('data-id', id);
-                            });
-                        }else{
-                            showFailedMessage()
-                        }
-                    },
-                    error: function (jqXHR, textStatus, errorThrown) {
-                        console.error(textStatus + " " + errorThrown);
-                        showFailedMessage()
-                    }
-                });
-            }
-
-            function deleteFile(id) {
-                var url = '{{ route('uploader.destroy', ":id") }}';
-                url = url.replace(':id', id);
-
-                $.ajax({
-                    method: 'POST',
-                    dataType: 'JSON',
-                    url: url,
-                    data:{
-                        'id': id,
-                        '_token': '{{ csrf_token() }}',
-                        '_method': 'DELETE',
-                    },
-                    success: function (data) {
-
-                    },
-
-                    error: function (jqXHR, textStatus, errorThrown) {
-                        showFailedMessage()
-                    }
-                });
-            }
-        });
-
-    </script>
-    @stack('scripts')
-
+        </div>
+    </div>
+</div>
 @endsection

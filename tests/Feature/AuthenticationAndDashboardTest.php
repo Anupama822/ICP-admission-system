@@ -37,7 +37,7 @@ class AuthenticationAndDashboardTest extends TestCase
         $dashboardResponse = $this->get('/admin/dashboard');
         $dashboardResponse->assertStatus(200);
         $dashboardResponse->assertSee('Admissions Control Center');
-        $dashboardResponse->assertSee('Staff Account Management');
+        $dashboardResponse->assertSee('Manage Staff');
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -151,7 +151,7 @@ class AuthenticationAndDashboardTest extends TestCase
             'status' => 'active',
         ]);
 
-        $response->assertRedirect('/admin/dashboard');
+        $response->assertRedirect('/admin/staff');
         $this->assertDatabaseHas('users', [
             'email' => 'kiran@icp.edu.np',
             'role' => 'staff',
@@ -169,7 +169,8 @@ class AuthenticationAndDashboardTest extends TestCase
 
         // Deactivate staff
         $response = $this->actingAs($admin)->post("/admin/staff/{$staff->id}/toggle-status");
-        $response->assertRedirect('/admin/dashboard');
+        $response->assertRedirect();
+        $response->assertSessionHas('status');
 
         $staff->refresh();
         $this->assertEquals('inactive', $staff->status);

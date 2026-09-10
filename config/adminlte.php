@@ -201,7 +201,7 @@ return [
     'register_url' => null,
     'password_reset_url' => 'password/reset',
     'password_email_url' => 'password/email',
-    'profile_url' => false,
+    'profile_url' => 'account/password',
 
     /*
     |--------------------------------------------------------------------------
@@ -808,17 +808,51 @@ return [
         ],
         [
             'text' => 'Academic Years',
-            'route' => 'admission-year.create',
             'icon' => 'fas fa-fw fa-calendar-alt',
             'can' => 'admin',
+            'submenu' => [
+                [
+                    'text' => 'All Academic Years',
+                    'route' => 'admission-year.index',
+                    'icon' => 'fas fa-fw fa-list',
+                ],
+                [
+                    'text' => 'Add Academic Year',
+                    'route' => 'admission-year.create',
+                    'icon' => 'fas fa-fw fa-plus',
+                ],
+            ],
         ],
         [
             'text' => 'Staff Management',
-            'route' => 'admin.dashboard',
             'icon' => 'fas fa-fw fa-users',
             'can' => 'admin',
+            'submenu' => [
+                [
+                    'text' => 'All Staff',
+                    'route' => 'admin.staff.index',
+                    'icon' => 'fas fa-fw fa-list',
+                ],
+                [
+                    'text' => 'Add Staff',
+                    'route' => 'admin.staff.create',
+                    'icon' => 'fas fa-fw fa-user-plus',
+                ],
+            ],
         ],
-        
+        [
+            'text' => 'Settings',
+            'icon' => 'fas fa-fw fa-cog',
+            'can' => 'admin',
+            'submenu' => [
+                [
+                    'text' => 'Course Management',
+                    'route' => 'admin.courses.index',
+                    'icon' => 'fas fa-fw fa-book',
+                ]
+            ],
+        ],
+
     ],
 
     /*

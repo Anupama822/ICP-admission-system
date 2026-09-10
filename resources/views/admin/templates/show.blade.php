@@ -1,64 +1,44 @@
-@extends('adminlte::page')
-@section('css')
-    @stack('styles')
-@stop
-@section('title', 'Show '.$title)
-@section('content_header')
-@stop
+@extends('layouts.app')
+
+@section('title', 'View '.$title)
 
 @section('content')
-    <section class="content">
-        <div class="container-fluid">
-            <div class="row">
-                <!-- left column -->
-                <div class="col">
-                    <!-- general form elements -->
-                    <div class="card mt-4">
-                                        <div class="d-flex justify-content-between align-items-center m-3">
-                        <div class="d-flex align-items-center">
-                            @if(!isset($hideDefaultBack))
-{{--                            @if(!isset($backToIndex))--}}
-                            <a href="javascript:history.back();" class="btn btn-outline-gear rounded-lg btn-sm mr-2">
-                                <i class="fas fa-arrow-left fa-sm"></i>
-                            </a>
-                            @else
-                            <a href="{{route($route.'index')}}" class="btn btn-outline-gear rounded-lg btn-sm mr-2">
-                                <i class="fas fa-arrow-left fa-sm"></i>
-                            </a>
-                            @endif
-                            <h3 class="card-title mb-0">{{$title}}</h3>
-                        </div>
-                        @if(!isset($hideEdit))
-                            <a href="{{route($route.'edit', $item->id)}}" class="btn btn-gear float-right">
-                                <i class="fa fa-edit"></i>
-                                <span class="kt-hidden-mobile">Edit</span>
-                            </a>
-                        @endif
-                    </div>
+<div class="row justify-content-center my-4">
+    <div class="col-12 col-md-10 col-lg-7">
 
-                        <div class="card-body">
-                            @yield('form_content')
+        <div class="icp-form-card">
 
-                        </div>
-                        <!-- <div class="m-3">
-                            <a href="javascript:history.back();" class="btn btn-default float-right">Cancel</a>
-                        </div> -->
+            {{-- Header --}}
+            <div class="icp-form-header d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                <div class="d-flex align-items-center gap-3">
+                    <a href="{{ route($route.'index') }}" class="btn icp-btn-icon" title="Back to {{ $title }}">
+                        @svg('heroicon-m-arrow-left', 'icp-icon-sm')
+                    </a>
+                    <div class="form-icon">
+                        @svg($icon ?? 'heroicon-o-eye', 'icp-icon-lg')
                     </div>
-                    <!-- /.card -->
+                    <div>
+                        <h1 class="icp-page-title">{{ $title }}</h1>
+                        @isset($description)
+                        <p class="mb-0 small icp-page-subtitle">{{ $description }}</p>
+                        @endisset
+                    </div>
                 </div>
-                <!--/.col (left) -->
-            </div>
-            <!-- /.row -->
-        </div><!-- /.container-fluid -->
-    </section>
-@endsection
 
-@section('js')
-    @stack('scripts')
-    <script>
-        jQuery(document).ready(function () {
-            $('#form input').attr('readonly', true);
-            $('#form select').attr('disabled', true);
-        });
-    </script>
-@stop
+                @unless($hideEdit ?? false)
+                <a href="{{ route($route.'edit', $item->id) }}"
+                    class="btn btn-primary d-inline-flex align-items-center gap-2 px-4 py-2">
+                    @svg('heroicon-m-pencil-square', 'icp-icon-sm')
+                    <span>Edit</span>
+                </a>
+                @endunless
+            </div>
+
+            <div class="icp-form-body">
+                @yield('form_content')
+            </div>
+
+        </div>
+    </div>
+</div>
+@endsection

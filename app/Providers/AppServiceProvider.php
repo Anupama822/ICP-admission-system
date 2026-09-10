@@ -22,5 +22,9 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::define('admin', fn ($user) => $user->isAdmin());
         Gate::define('staff', fn ($user) => $user->isStaff());
+
+        // Admins always pass permission checks; staff permissions are
+        // evaluated normally against the permissions granted to them.
+        Gate::before(fn ($user, string $ability) => $user->isAdmin() ? true : null);
     }
 }

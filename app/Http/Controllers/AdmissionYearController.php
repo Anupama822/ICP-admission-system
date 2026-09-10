@@ -2,81 +2,151 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\AdmissionYearDataTable;
+use App\Http\Requests\AdmissionYearRequest;
+use App\Models\AdmissionYear;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use App\Http\Controllers\BaseController;
-
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class AdmissionYearController extends BaseController
 {
+    /**
+     * Fields that may be changed straight from the index table.
+     */
+    private const INLINE_EDITABLE = ['title', 'year'];
 
-    public function __construct(){
+    public function __construct()
+    {
         $this->title = 'Admission Year';
         $this->subTitle = 'Admission Year';
         $this->resources = 'admin.admissionYears.';
-        $this->icon = 'fas fa-calendar';
-        $this->route = "admission-year.";
-        $this->description = "Create the Admission Year that will be active for the system.";
+        $this->icon = 'heroicon-o-calendar-days';
+        $this->route = 'admission-year.';
+        $this->description = 'Create the Admission Year that will be active for the system.';
         parent::__construct();
         // $this->generateAllMiddlewareByPermission();
     }
 
-    public function index(Request $request)
-{
-    $query = AdmissionYear::query();
-
-    if ($request->filled('search')) {
-        $query->where('year', 'like', '%'.$request->search.'%');
+    /**
+     * Index backed by a server side DataTable (search, sort, paginate, export).
+     */
+    public function index(AdmissionYearDataTable $dataTable)
+    {
+        return $dataTable->render($this->indexResource(), $this->crudInfo() + [
+            'add_button_name' => 'Add Admission Year',
+        ]);
     }
 
-    if ($request->filled('sort')) {
-        $query->orderBy($request->sort, $request->get('dir', 'asc'));
-    } else {
-        $query->latest();
+    public function create()
+    {
+        return view($this->createResource(), $this->crudInfo());
     }
 
-    $admissionYears = $query->paginate($request->get('per_page', 10));
+    public function store(AdmissionYearRequest $request)
+    {
+        $admissionYear = AdmissionYear::create($request->safe()->only(['title', 'year']) + ['is_active' => false]);
 
-    if ($request->ajax()) {
-        return view('admin.admissionYears._table', compact('admissionYears'))->render();
+        if ($request->boolean('is_active')) {
+            $admissionYear->activate();
+        }
+
+        return $this->gotoCrudIndex()
+            ->with('status', "Admission year {$admissionYear->title} created successfully.");
     }
 
-    return view('admin.admissionYears.index', [
-        'title' => 'Admission Year',
-        'route' => 'admission-year.',
-        'admissionYears' => $admissionYears,
-        'exportRoutes' => [
-            'pdf'   => 'admission-year.export.pdf',
-            'excel' => 'admission-year.export.excel',
-            'csv'   => 'admission-year.export.csv',
-        ],
-        // 'hideExport' => true, // uncomment to hide export button entirely
-    ]);
-}
-        /**
+    public function show(AdmissionYear $admissionYear)
+    {
+        return view($this->showResource(), $this->crudInfo() + ['item' => $admissionYear]);
+    }
+
+    public function edit(AdmissionYear $admissionYear)
+    {
+        return view($this->editResource(), $this->crudInfo() + ['item' => $admissionYear]);
+    }
+
+    public function update(AdmissionYearRequest $request, AdmissionYear $admissionYear)
+    {
+        $admissionYear->update($request->safe()->only(['title', 'year']));
+
+        if ($request->boolean('is_active')) {
+            $admissionYear->activate();
+        }
+
+        return $this->gotoCrudIndex()
+            ->with('status', "Admission year {$admissionYear->title} updated successfully.");
+    }
+
+    /**
+     * Save a single cell edited straight from the index table.
+     */
+    public function inlineUpdate(Request $request, AdmissionYear $admissionYear): JsonResponse
+    {
+        $field = (string) $request->input('field');
+
+        if (! in_array($field, self::INLINE_EDITABLE, true)) {
+            return $this->sendError('This field cannot be edited inline.', [], 422);
+        }
+
+        $rules = [
+            'title' => ['required', 'string', 'max:255', Rule::unique('admission_years', 'title')->ignore($admissionYear->getKey())],
+            'year' => ['required', 'digits:4', 'integer', 'between:2000,2100'],
+        ];
+
+        $validator = Validator::make(
+            [$field => $request->input('value')],
+            [$field => $rules[$field]],
+            [],
+            ['title' => 'admission year title', 'year' => 'starting year']
+        );
+
+        if ($validator->fails()) {
+            return $this->sendError($validator->errors()->first($field), $validator->errors()->toArray(), 422);
+        }
+
+        $admissionYear->update([$field => $validator->validated()[$field]]);
+
+        return $this->returnSuccess([
+            'field' => $field,
+            'value' => $admissionYear->{$field},
+            'message' => 'Saved.',
+        ]);
+    }
+
+    public function destroy(Request $request, AdmissionYear $admissionYear)
+    {
+        if ($admissionYear->is_active) {
+            $message = 'The active admission year cannot be deleted. Activate another year first.';
+
+            return $request->expectsJson()
+                ? $this->sendError($message, [], 422)
+                : redirect()->back()->withErrors($message);
+        }
+
+        $title = $admissionYear->title;
+        $admissionYear->delete();
+
+        return $request->expectsJson()
+            ? $this->returnSuccess(['message' => "Admission year {$title} deleted."])
+            : $this->gotoCrudIndex()->with('status', "Admission year {$title} deleted.");
+    }
+
+    /**
      * Show the admission year setup form.
      */
     public function showAdmissionYearSetup()
     {
-        return view($this->resources.'setup');
-    }
-    public function getAddmissionYearCreate()
-    {
-        $info = $this->crudInfo();
-        return view($this->resources.'create', $info);
+        return view($this->resources.'setup', $this->crudInfo());
     }
 
     /**
-     * Store the active admission year.
+     * Store the first / active admission year from the setup screen.
      */
-    public function storeAdmissionYear(Request $request)
+    public function storeAdmissionYear(AdmissionYearRequest $request)
     {
-        $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255', 'unique:admission_years,title'],
-            'year' => ['required', 'string', 'max:4'],
-        ]);
-
-        AdmissionYear::where('is_active', true)->update(['is_active' => false]);
-        AdmissionYear::create($validated + ['is_active' => true]);
+        $admissionYear = AdmissionYear::create($request->safe()->only(['title', 'year']) + ['is_active' => false]);
+        $admissionYear->activate();
 
         return redirect()->route('admin.dashboard')->with('status', 'Admission year set up successfully.');
     }
@@ -84,66 +154,14 @@ class AdmissionYearController extends BaseController
     /**
      * Activate an existing admission year and deactivate all others.
      */
-    public function activateAdmissionYear(AdmissionYear $admissionYear)
+    public function activateAdmissionYear(Request $request, AdmissionYear $admissionYear)
     {
-        AdmissionYear::where('is_active', true)->update(['is_active' => false]);
-        $admissionYear->update(['is_active' => true]);
+        $admissionYear->activate();
 
-        return redirect()->back()->with('status', 'Academic year ' . $admissionYear->title . ' is now active.');
-    }
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+        $message = "Admission year {$admissionYear->title} is now active.";
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+        return $request->expectsJson()
+            ? $this->returnSuccess(['message' => $message])
+            : redirect()->back()->with('status', $message);
     }
 }

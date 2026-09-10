@@ -5,6 +5,8 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use App\Models\Course;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
@@ -13,6 +15,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(PermissionSeeder::class);
+
         // Seed Admin User
         User::updateOrCreate(
             ['email' => 'admin@icp.edu.np'],
@@ -27,7 +31,7 @@ class DatabaseSeeder extends Seeder
         );
 
         // Seed Sample Active Staff User
-        User::updateOrCreate(
+        $aarav = User::updateOrCreate(
             ['email' => 'aarav@icp.edu.np'],
             [
                 'name' => 'Aarav Shrestha',
@@ -38,9 +42,10 @@ class DatabaseSeeder extends Seeder
                 'image_url' => 'https://ui-avatars.com/api/?name=Aarav+Shrestha&background=0284c7&color=fff',
             ]
         );
+        $aarav->syncPermissions(PermissionSeeder::defaultSlugs());
 
         // Seed Sample Inactive Staff User (to test inactive login restriction)
-        User::updateOrCreate(
+        $suman = User::updateOrCreate(
             ['email' => 'suman@icp.edu.np'],
             [
                 'name' => 'Suman Gurung',
@@ -51,5 +56,25 @@ class DatabaseSeeder extends Seeder
                 'image_url' => 'https://ui-avatars.com/api/?name=Suman+Gurung&background=64748b&color=fff',
             ]
         );
+        $suman->syncPermissions(PermissionSeeder::defaultSlugs());
+
+Course::updateOrCreate(
+            ['title' => 'BIT'],
+            [
+                'id' => Str::uuid(),
+                'credits' => null,
+                'description' => null,
+            ]
+        );
+
+        Course::updateOrCreate(
+            ['title' => 'BBA'],
+            [
+                'id' => Str::uuid(),
+                'credits' => null,
+                'description' => null,
+            ]
+        );
+
     }
 }

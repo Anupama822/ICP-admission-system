@@ -21,12 +21,15 @@
             </span>
         </div>
     </div>
-    <div>
-        <button data-bs-toggle="modal" data-bs-target="#addStaffModal"
-            class="btn btn-primary d-inline-flex align-items-center gap-2 px-4 py-2">
+    <div class="d-flex gap-2">
+        <a href="{{ route('admin.staff.index') }}" class="btn icp-btn-muted d-inline-flex align-items-center gap-2 px-4 py-2">
+            <i class="fas fa-users"></i>
+            <span>Manage Staff</span>
+        </a>
+        <a href="{{ route('admin.staff.create') }}" class="btn btn-primary d-inline-flex align-items-center gap-2 px-4 py-2">
             <i class="fas fa-user-plus"></i>
             <span>Add New Staff</span>
-        </button>
+        </a>
     </div>
 </div>
 
@@ -113,85 +116,6 @@
 
 </div>
 
-{{-- ── Staff Management Table ── --}}
-<div class="icp-card mb-4">
-    <div class="icp-card-header d-flex flex-column flex-sm-row align-items-sm-center justify-content-sm-between gap-2">
-        <div>
-            <p class="icp-card-title">Staff Account Management</p>
-            <p class="icp-card-subtitle">Staff accounts are created by Admin. Inactive staff members cannot log in.</p>
-        </div>
-        <span class="icp-badge badge-active" style="font-size:.72rem">
-            Total Staff: {{ $staffMembers->count() }}
-        </span>
-    </div>
-    <div class="table-responsive">
-        <table class="table icp-table mb-0">
-            <thead>
-                <tr>
-                    <th>Staff Member</th>
-                    <th>Position</th>
-                    <th>Status</th>
-                    <th class="text-end">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($staffMembers as $staff)
-                    <tr>
-                        <td>
-                            <div class="d-flex align-items-center gap-3">
-                                <img src="{{ $staff->image_url }}" alt="{{ $staff->name }}"
-                                    class="rounded-circle border"
-                                    style="width:40px;height:40px;object-fit:cover;border-color:#f0e6e7 !important">
-                                <div>
-                                    <div class="fw-bold" style="color:#232323">{{ $staff->name }}</div>
-                                    <div style="font-size:.78rem;color:var(--general-color);font-family:monospace">{{ $staff->email }}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td style="color:var(--general-color)">{{ $staff->position }}</td>
-                        <td>
-                            @if ($staff->status === 'active')
-                                <span class="icp-badge badge-active">
-                                    <span class="icp-badge-dot"></span>Active
-                                </span>
-                            @else
-                                <span class="icp-badge badge-inactive">
-                                    <span class="icp-badge-dot"></span>Inactive (Blocked)
-                                </span>
-                            @endif
-                        </td>
-                        <td class="text-end">
-                            <form method="POST" action="{{ route('admin.staff.toggle-status', $staff->id) }}" class="d-inline">
-                                @csrf
-                                @if ($staff->status === 'active')
-                                    <button type="submit" class="btn btn-sm"
-                                        style="background:rgba(239,68,68,.08);color:#b91c1c;border:1px solid rgba(239,68,68,.2);border-radius:8px;font-size:.78rem;font-weight:700"
-                                        title="Deactivate staff (login will be denied)">
-                                        Deactivate
-                                    </button>
-                                @else
-                                    <button type="submit" class="btn btn-sm"
-                                        style="background:rgba(16,185,129,.08);color:#065f46;border:1px solid rgba(16,185,129,.2);border-radius:8px;font-size:.78rem;font-weight:700"
-                                        title="Activate staff (login will be allowed)">
-                                        Activate Login
-                                    </button>
-                                @endif
-                            </form>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="4" class="text-center py-4" style="color:var(--general-color)">
-                            <i class="fas fa-users mb-2 d-block" style="font-size:1.5rem;opacity:.3"></i>
-                            No staff members found. Click "Add New Staff" to create one.
-                        </td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-</div>
-
 {{-- ── Bottom Row: Programs + Logs ── --}}
 <div class="row g-4">
 
@@ -255,64 +179,6 @@
         </div>
     </div>
 
-</div>
-
-{{-- ── Add New Staff Modal ── --}}
-<div class="modal fade icp-modal" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div>
-                    <h5 class="modal-title" id="addStaffModalLabel">Add New Staff Member</h5>
-                    <p class="mb-0 small" style="color:var(--general-color)">Create a staff account for Informatics College Pokhara</p>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-
-            <form method="POST" action="{{ route('admin.staff.store') }}">
-                @csrf
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold small" style="color:var(--heading-color)">Status</label>
-                        <select name="status" required class="form-select"
-                            style="border-color:#e5e7eb;border-radius:10px;font-size:.9rem">
-                            <option value="active">Active (Login Allowed)</option>
-                            <option value="inactive">Inactive (Login Denied)</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold small" style="color:var(--heading-color)">Full Name</label>
-                        <input type="text" name="name" required placeholder="e.g. Maya Gurung"
-                            class="form-control" style="border-color:#e5e7eb;border-radius:10px;font-size:.9rem">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold small" style="color:var(--heading-color)">Email Address</label>
-                        <input type="email" name="email" required placeholder="e.g. maya@icp.edu.np"
-                            class="form-control" style="border-color:#e5e7eb;border-radius:10px;font-size:.9rem">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold small" style="color:var(--heading-color)">Position / Role</label>
-                        <input type="text" name="position" required placeholder="e.g. Admissions Counselor"
-                            class="form-control" style="border-color:#e5e7eb;border-radius:10px;font-size:.9rem">
-                    </div>
-                    <div class="mb-1">
-                        <label class="form-label fw-semibold small" style="color:var(--heading-color)">Password</label>
-                        <input type="password" name="password" required placeholder="••••••••••••"
-                            class="form-control" style="border-color:#e5e7eb;border-radius:10px;font-size:.9rem">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-sm px-4 py-2 fw-bold" data-bs-dismiss="modal"
-                        style="background:#f3f4f6;color:var(--general-color);border:none;border-radius:10px">
-                        Cancel
-                    </button>
-                    <button type="submit" class="btn btn-primary btn-sm px-4 py-2">
-                        Create Staff Member
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
 </div>
 
 @endsection

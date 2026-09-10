@@ -10,44 +10,6 @@ use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
-    /**
-     * Show the admission year setup form.
-     */
-    public function showAdmissionYearSetup()
-    {
-        return view('admin.admission-year-setup');
-    }
-    public function getAddmissionYearCreate()
-    {
-        return view('admin.admisisonYears.create');
-    }
-
-    /**
-     * Store the active admission year.
-     */
-    public function storeAdmissionYear(Request $request)
-    {
-        $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255', 'unique:admission_years,title'],
-            'year' => ['required', 'string', 'max:4'],
-        ]);
-
-        AdmissionYear::where('is_active', true)->update(['is_active' => false]);
-        AdmissionYear::create($validated + ['is_active' => true]);
-
-        return redirect()->route('admin.dashboard')->with('status', 'Admission year set up successfully.');
-    }
-
-    /**
-     * Activate an existing admission year and deactivate all others.
-     */
-    public function activateAdmissionYear(AdmissionYear $admissionYear)
-    {
-        AdmissionYear::where('is_active', true)->update(['is_active' => false]);
-        $admissionYear->update(['is_active' => true]);
-
-        return redirect()->back()->with('status', 'Academic year ' . $admissionYear->title . ' is now active.');
-    }
 
     /**
      * Display Admin Dashboard.

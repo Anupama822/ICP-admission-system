@@ -841,6 +841,24 @@ return [
             ],
         ],
         [
+            'text' => 'Students',
+            'icon' => 'fas fa-fw fa-user-graduate',
+            'can' => 'students.view',
+            'submenu' => [
+                [
+                    'text' => 'All Students',
+                    'route' => 'admin.students.index',
+                    'icon' => 'fas fa-fw fa-list',
+                ],
+                [
+                    'text' => 'Add Student',
+                    'route' => 'admin.students.create',
+                    'icon' => 'fas fa-fw fa-user-plus',
+                    'can' => 'students.create',
+                ],
+            ],
+        ],
+        [
             'text' => 'Settings',
             'icon' => 'fas fa-fw fa-cog',
             'can' => 'admin',

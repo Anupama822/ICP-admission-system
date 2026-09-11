@@ -21,6 +21,8 @@ class PermissionSeeder extends Seeder
             'students.create' => 'Create students',
             'students.edit' => 'Edit students',
             'students.delete' => 'Delete students',
+            'students.export-pdf' => 'Export a student\'s enrollment PDF',
+            'students.export-csv' => 'Export the student list as CSV',
         ],
         'Applications & Enquiries' => [
             'applications.view' => 'View applications & enquiries',

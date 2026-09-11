@@ -118,6 +118,14 @@ class CourseController extends BaseController
 
     public function destroy(Request $request, Course $course)
     {
+        if ($course->students()->exists()) {
+            $message = 'This course has enrolled students and cannot be deleted.';
+
+            return $request->expectsJson()
+                ? $this->sendError($message, [], 422)
+                : redirect()->back()->withErrors($message);
+        }
+
         $title = $course->title;
         $course->delete();
 

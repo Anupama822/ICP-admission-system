@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="row justify-content-center my-4">
-    <div class="col-12 col-md-10 col-lg-7">
+    <div class="col-12 {{ ($wide ?? false) ? 'col-lg-11' : 'col-md-10 col-lg-7' }}">
 
         <div class="icp-form-card">
 
@@ -38,7 +38,7 @@
                         <a href="{{ route($route.'index') }}" class="btn icp-btn-muted px-4 py-2 fw-bold">
                             Cancel
                         </a>
-                        <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2 px-5 py-2">
+                        <button type="submit" id="icp-form-submit" class="btn btn-primary d-inline-flex align-items-center gap-2 px-5 py-2">
                             <span>Update {{ $title }}</span>
                             @svg('heroicon-m-check', 'icp-icon-sm')
                         </button>

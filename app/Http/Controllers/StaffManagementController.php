@@ -40,6 +40,7 @@ class StaffManagementController extends BaseController
         return view($this->createResource(), $this->crudInfo() + [
             'permissionCatalog' => PermissionSeeder::catalog(),
             'checkedPermissions' => old('permissions', PermissionSeeder::defaultSlugs()),
+            'wide' => true,
         ]);
     }
 
@@ -76,7 +77,7 @@ class StaffManagementController extends BaseController
     {
         $this->ensureIsStaff($staff);
 
-        return view($this->editResource(), $this->crudInfo() + ['item' => $staff]);
+        return view($this->editResource(), $this->crudInfo() + ['item' => $staff, 'wide' => true]);
     }
 
     public function update(StaffRequest $request, User $staff)

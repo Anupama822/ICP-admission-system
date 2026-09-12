@@ -41,7 +41,7 @@ class AdmissionYearController extends BaseController
 
     public function create()
     {
-        return view($this->createResource(), $this->crudInfo());
+        return view($this->createResource(), $this->crudInfo() + ['wide' => true]);
     }
 
     public function store(AdmissionYearRequest $request)
@@ -63,7 +63,7 @@ class AdmissionYearController extends BaseController
 
     public function edit(AdmissionYear $admissionYear)
     {
-        return view($this->editResource(), $this->crudInfo() + ['item' => $admissionYear]);
+        return view($this->editResource(), $this->crudInfo() + ['item' => $admissionYear, 'wide' => true]);
     }
 
     public function update(AdmissionYearRequest $request, AdmissionYear $admissionYear)

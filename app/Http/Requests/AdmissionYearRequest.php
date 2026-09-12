@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\AdmissionYear;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -26,6 +27,7 @@ class AdmissionYearRequest extends FormRequest
                 Rule::unique('admission_years', 'title')->ignore($ignoreId),
             ],
             'year' => ['required', 'digits:4', 'integer', 'between:2000,2100'],
+            'intake' => ['required', Rule::in(AdmissionYear::INTAKES)],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }
@@ -35,6 +37,7 @@ class AdmissionYearRequest extends FormRequest
         return [
             'title' => 'admission year title',
             'year' => 'starting year',
+            'intake' => 'intake',
             'is_active' => 'active status',
         ];
     }

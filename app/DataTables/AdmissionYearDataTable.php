@@ -93,7 +93,7 @@ class AdmissionYearDataTable extends DataTable
             ->processing()
             ->responsive()
             ->autoWidth(false)
-            ->orderBy(4, 'desc')
+            ->orderBy(5, 'desc')
             ->pageLength(10)
             ->lengthMenu([[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']])
             ->dom(
@@ -143,6 +143,7 @@ class AdmissionYearDataTable extends DataTable
                 ->addClass('text-center'),
             Column::make('title')->title('Title'),
             Column::make('year')->title('Admission Year'),
+            Column::make('intake')->title('Intake'),
             Column::make('is_active')->title('Status'),
             Column::make('created_at')->title('Created At'),
             Column::computed('action')

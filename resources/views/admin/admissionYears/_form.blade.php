@@ -23,18 +23,30 @@
     {{-- Starting Year --}}
     <div class="col-12 col-sm-6">
         <label for="year" class="form-label fw-semibold small icp-label">Starting year</label>
-        <input
+        <select
             id="year"
             name="year"
-            type="number"
-            value="{{ old('year', $item?->year ?? date('Y')) }}"
-            placeholder="e.g. 2026"
-            min="2000"
-            max="2100"
             required
-            class="form-control icp-input @error('year') is-invalid @enderror"
+            class="form-select icp-input @error('year') is-invalid @enderror"
         >
+            @foreach($years as $option)
+                <option value="{{ $option }}" @selected((string) old('year', $item?->year ?? date('Y')) === (string) $option)>{{ $option }}</option>
+            @endforeach
+        </select>
         @error('year')
+            <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
+    </div>
+
+    {{-- Intake --}}
+    <div class="col-12 col-sm-6">
+        <label for="intake" class="form-label fw-semibold small icp-label">Intake</label>
+        <select id="intake" name="intake" required class="form-select icp-input @error('intake') is-invalid @enderror">
+            @foreach($intakes as $option)
+                <option value="{{ $option }}" @selected(old('intake', $item?->intake) === $option)>{{ $option }}</option>
+            @endforeach
+        </select>
+        @error('intake')
             <div class="invalid-feedback">{{ $message }}</div>
         @enderror
     </div>

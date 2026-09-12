@@ -14,10 +14,14 @@ class AdmissionYear extends Model
     /** @use HasFactory<AdmissionYearFactory> */
     use HasFactory, HasUuids;
 
+    /** Allowed values for the `intake` column. */
+    public const INTAKES = ['Spring', 'Autumn'];
+
     protected $fillable = [
         'title',
         'is_active',
         'year',
+        'intake',
     ];
 
     protected function casts(): array

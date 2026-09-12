@@ -19,6 +19,7 @@ class AdmissionYearFactory extends Factory
         return [
             'title' => $year.'/'.substr((string) ($year + 1), -2),
             'year' => (string) $year,
+            'intake' => fake()->randomElement(['Spring', 'Autumn']),
             'is_active' => false,
         ];
     }

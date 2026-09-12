@@ -41,12 +41,12 @@ class AdmissionYearController extends BaseController
 
     public function create()
     {
-        return view($this->createResource(), $this->crudInfo() + ['wide' => true]);
+        return view($this->createResource(), $this->crudInfo() + $this->yearFormOptions() + ['wide' => true]);
     }
 
     public function store(AdmissionYearRequest $request)
     {
-        $admissionYear = AdmissionYear::create($request->safe()->only(['title', 'year']) + ['is_active' => false]);
+        $admissionYear = AdmissionYear::create($request->safe()->only(['title', 'year', 'intake']) + ['is_active' => false]);
 
         if ($request->boolean('is_active')) {
             $admissionYear->activate();
@@ -63,12 +63,12 @@ class AdmissionYearController extends BaseController
 
     public function edit(AdmissionYear $admissionYear)
     {
-        return view($this->editResource(), $this->crudInfo() + ['item' => $admissionYear, 'wide' => true]);
+        return view($this->editResource(), $this->crudInfo() + $this->yearFormOptions() + ['item' => $admissionYear, 'wide' => true]);
     }
 
     public function update(AdmissionYearRequest $request, AdmissionYear $admissionYear)
     {
-        $admissionYear->update($request->safe()->only(['title', 'year']));
+        $admissionYear->update($request->safe()->only(['title', 'year', 'intake']));
 
         if ($request->boolean('is_active')) {
             $admissionYear->activate();
@@ -145,7 +145,7 @@ class AdmissionYearController extends BaseController
      */
     public function showAdmissionYearSetup()
     {
-        return view($this->resources.'setup', $this->crudInfo());
+        return view($this->resources.'setup', $this->crudInfo() + $this->yearFormOptions());
     }
 
     /**
@@ -153,7 +153,7 @@ class AdmissionYearController extends BaseController
      */
     public function storeAdmissionYear(AdmissionYearRequest $request)
     {
-        $admissionYear = AdmissionYear::create($request->safe()->only(['title', 'year']) + ['is_active' => false]);
+        $admissionYear = AdmissionYear::create($request->safe()->only(['title', 'year', 'intake']) + ['is_active' => false]);
         $admissionYear->activate();
 
         return redirect()->route('admin.dashboard')->with('status', 'Admission year set up successfully.');
@@ -171,5 +171,21 @@ class AdmissionYearController extends BaseController
         return $request->expectsJson()
             ? $this->returnSuccess(['message' => $message])
             : redirect()->back()->with('status', $message);
+    }
+
+    /**
+     * Options shared by the create/edit/setup forms: the picklist of
+     * intakes and a sensible range of selectable starting years.
+     *
+     * @return array<string, mixed>
+     */
+    private function yearFormOptions(): array
+    {
+        $currentYear = (int) date('Y');
+
+        return [
+            'intakes' => AdmissionYear::INTAKES,
+            'years' => range($currentYear - 5, $currentYear + 2),
+        ];
     }
 }

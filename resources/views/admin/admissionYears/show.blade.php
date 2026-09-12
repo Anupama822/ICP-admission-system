@@ -10,6 +10,9 @@
         <dt class="col-12 col-sm-4">Starting year</dt>
         <dd class="col-12 col-sm-8">{{ $item->year }}</dd>
 
+        <dt class="col-12 col-sm-4">Intake</dt>
+        <dd class="col-12 col-sm-8">{{ $item->intake }}</dd>
+
         <dt class="col-12 col-sm-4">Status</dt>
         <dd class="col-12 col-sm-8">
             @include('admin.admissionYears.partials.status', ['model' => $item])

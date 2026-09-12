@@ -158,6 +158,7 @@ class AdmissionYearCrudTest extends TestCase
             ->post(route('admission-year.store'), [
                 'title' => '2026/27',
                 'year' => '2026',
+                'intake' => 'Spring',
                 'is_active' => 1,
             ])
             ->assertRedirect(route('admission-year.index'));
@@ -185,7 +186,7 @@ class AdmissionYearCrudTest extends TestCase
         $year = AdmissionYear::factory()->create(['title' => '2025/26', 'year' => '2025']);
 
         $this->actingAs($this->admin)
-            ->put(route('admission-year.update', $year), ['title' => '2026/27', 'year' => '2026'])
+            ->put(route('admission-year.update', $year), ['title' => '2026/27', 'year' => '2026', 'intake' => 'Autumn'])
             ->assertRedirect(route('admission-year.index'));
 
         $this->assertDatabaseHas('admission_years', ['id' => $year->id, 'title' => '2026/27', 'year' => '2026']);
@@ -306,7 +307,7 @@ class AdmissionYearCrudTest extends TestCase
      */
     private function datatableColumns(): array
     {
-        $columns = ['DT_RowIndex', 'title', 'year', 'is_active', 'created_at', 'action'];
+        $columns = ['DT_RowIndex', 'title', 'year', 'intake', 'is_active', 'created_at', 'action'];
         $computed = ['DT_RowIndex', 'action'];
 
         return collect($columns)->map(function (string $name) use ($computed) {

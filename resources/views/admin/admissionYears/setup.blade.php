@@ -61,19 +61,39 @@
                             <label for="year" class="form-label fw-semibold small" style="color:var(--heading-color)">
                                 Starting year
                             </label>
-                            <input
+                            <select
                                 id="year"
                                 name="year"
-                                type="number"
-                                value="{{ old('year', date('Y')) }}"
-                                placeholder="e.g. 2026"
-                                min="2000"
-                                max="2100"
                                 required
-                                class="form-control @error('year') is-invalid @enderror"
+                                class="form-select @error('year') is-invalid @enderror"
                                 style="border-color:#e5e7eb;border-radius:10px"
                             >
+                                @foreach($years as $option)
+                                    <option value="{{ $option }}" @selected((string) old('year', date('Y')) === (string) $option)>{{ $option }}</option>
+                                @endforeach
+                            </select>
                             @error('year')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        {{-- Intake --}}
+                        <div class="col-12 col-sm-6">
+                            <label for="intake" class="form-label fw-semibold small" style="color:var(--heading-color)">
+                                Intake
+                            </label>
+                            <select
+                                id="intake"
+                                name="intake"
+                                required
+                                class="form-select @error('intake') is-invalid @enderror"
+                                style="border-color:#e5e7eb;border-radius:10px"
+                            >
+                                @foreach($intakes as $option)
+                                    <option value="{{ $option }}" @selected(old('intake') === $option)>{{ $option }}</option>
+                                @endforeach
+                            </select>
+                            @error('intake')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>

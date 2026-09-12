@@ -96,6 +96,7 @@ class AuthenticationAndDashboardTest extends TestCase
         $response = $this->actingAs($admin)->post('/admission-year/setup', [
             'title' => '2027/28',
             'year' => '2027',
+            'intake' => 'Spring',
         ]);
 
         $response->assertRedirect('/admin/dashboard');

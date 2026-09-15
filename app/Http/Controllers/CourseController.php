@@ -40,12 +40,14 @@ class CourseController extends BaseController
 
     public function create()
     {
-        return view($this->createResource(), $this->crudInfo());
+        return view($this->createResource(), $this->crudInfo() + ['wide' => true]);
     }
 
     public function store(CourseRequest $request)
     {
-        $course = Course::create($request->safe()->only(['title', 'credits', 'description']));
+        $course = Course::create($request->safe()->only(['title', 'display_title', 'credits', 'description']) + [
+            'levels' => $request->levelsArray(),
+        ]);
 
         return $this->gotoCrudIndex()
             ->with('status', "Course {$course->title} created successfully.");
@@ -58,12 +60,14 @@ class CourseController extends BaseController
 
     public function edit(Course $course)
     {
-        return view($this->editResource(), $this->crudInfo() + ['item' => $course]);
+        return view($this->editResource(), $this->crudInfo() + ['item' => $course, 'wide' => true]);
     }
 
     public function update(CourseRequest $request, Course $course)
     {
-        $course->update($request->safe()->only(['title', 'credits', 'description']));
+        $course->update($request->safe()->only(['title', 'display_title', 'credits', 'description']) + [
+            'levels' => $request->levelsArray(),
+        ]);
 
         return $this->gotoCrudIndex()
             ->with('status', "Course {$course->title} updated successfully.");

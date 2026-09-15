@@ -16,6 +16,8 @@ class CourseFactory extends Factory
     {
         return [
             'title' => fake()->unique()->words(3, true),
+            'display_title' => fake()->unique()->lexify('???'),
+            'levels' => ['04', '05', '06'],
             'credits' => fake()->randomElement([1, 1.5, 2, 3, 4]),
             'description' => fake()->optional()->sentence(),
         ];

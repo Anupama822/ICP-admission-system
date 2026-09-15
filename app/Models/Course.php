@@ -15,6 +15,8 @@ class Course extends Model
 
     protected $fillable = [
         'title',
+        'display_title',
+        'levels',
         'credits',
         'description',
     ];
@@ -23,11 +25,21 @@ class Course extends Model
     {
         return [
             'credits' => 'decimal:1',
+            'levels' => 'array',
         ];
     }
 
     public function students(): HasMany
     {
         return $this->hasMany(Student::class);
+    }
+
+    /**
+     * The short, friendly name shown in listings/dropdowns/exports, falling
+     * back to the full title for records created before this field existed.
+     */
+    public function displayTitle(): string
+    {
+        return $this->display_title ?: $this->title;
     }
 }

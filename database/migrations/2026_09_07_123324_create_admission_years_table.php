@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('title')->unique();
             $table->boolean('is_active')->default(false);
             $table->string('year');
+            $table->enum('intake', ['Spring', 'Autumn'])->default('Spring')->after('year');
             $table->timestamps();
         });
     }

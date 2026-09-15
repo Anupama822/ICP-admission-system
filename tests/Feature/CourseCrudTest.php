@@ -87,6 +87,7 @@ class CourseCrudTest extends TestCase
         $this->actingAs($this->admin)
             ->post(route('admin.courses.store'), [
                 'title' => 'Introduction to Programming',
+                'display_title' => 'Intro Programming',
             ])
             ->assertRedirect(route('admin.courses.index'));
 
@@ -103,6 +104,7 @@ class CourseCrudTest extends TestCase
         $this->actingAs($this->admin)
             ->post(route('admin.courses.store'), [
                 'title' => 'Data Structures',
+                'display_title' => 'Data Structures',
                 'credits' => 3.5,
                 'description' => 'Covers linked lists, trees, and graphs.',
             ])
@@ -112,6 +114,38 @@ class CourseCrudTest extends TestCase
 
         $this->assertSame('3.5', (string) $course->credits);
         $this->assertSame('Covers linked lists, trees, and graphs.', $course->description);
+    }
+
+    #[Test]
+    public function admin_can_create_a_course_with_levels(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('admin.courses.store'), [
+                'title' => 'BIT',
+                'display_title' => 'BIT',
+                'levels' => '04, 05, 06',
+            ])
+            ->assertRedirect(route('admin.courses.index'));
+
+        $course = Course::where('title', 'BIT')->firstOrFail();
+
+        $this->assertSame(['04', '05', '06'], $course->levels);
+    }
+
+    #[Test]
+    public function admin_can_update_a_courses_levels(): void
+    {
+        $course = Course::factory()->create(['levels' => ['04', '05', '06']]);
+
+        $this->actingAs($this->admin)
+            ->put(route('admin.courses.update', $course), [
+                'title' => $course->title,
+                'display_title' => $course->display_title ?? $course->title,
+                'levels' => '04, 05, 06, 07',
+            ])
+            ->assertRedirect(route('admin.courses.index'));
+
+        $this->assertSame(['04', '05', '06', '07'], $course->fresh()->levels);
     }
 
     #[Test]
@@ -132,6 +166,7 @@ class CourseCrudTest extends TestCase
         $this->actingAs($this->admin)
             ->put(route('admin.courses.update', $course), [
                 'title' => 'Advanced Algorithms',
+                'display_title' => 'Advanced Algorithms',
                 'credits' => 4,
             ])
             ->assertRedirect(route('admin.courses.index'));
@@ -255,8 +290,8 @@ class CourseCrudTest extends TestCase
      */
     private function datatableColumns(): array
     {
-        $columns = ['DT_RowIndex', 'title', 'credits', 'description', 'created_at', 'action'];
-        $computed = ['DT_RowIndex', 'action'];
+        $columns = ['DT_RowIndex', 'title', 'display_title', 'levels', 'credits', 'description', 'created_at', 'action'];
+        $computed = ['DT_RowIndex', 'levels', 'action'];
 
         return collect($columns)->map(function (string $name) use ($computed) {
             $column = ['data' => $name];

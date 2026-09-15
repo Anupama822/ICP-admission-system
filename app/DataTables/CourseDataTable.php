@@ -36,6 +36,8 @@ class CourseDataTable extends DataTable
                 'value' => $row->title,
                 'type' => 'text',
             ])->render())
+            ->editColumn('display_title', fn (Course $row) => e($row->displayTitle()))
+            ->addColumn('levels', fn (Course $row) => $row->levels ? e(implode(', ', $row->levels)) : '—')
             ->editColumn('credits', fn (Course $row) => view('admin.courses.partials.inline-cell', [
                 'model' => $row,
                 'field' => 'credits',
@@ -128,6 +130,8 @@ class CourseDataTable extends DataTable
                 ->orderable(false)
                 ->addClass('text-center'),
             Column::make('title')->title('Title'),
+            Column::make('display_title')->title('Display Title'),
+            Column::computed('levels')->title('Levels')->searchable(false)->orderable(false),
             Column::make('credits')->title('Credits'),
             Column::make('description')->title('Description'),
             Column::make('created_at')->title('Created At'),

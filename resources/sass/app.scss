@@ -303,6 +303,19 @@ body {
 }
 
 // ─── ICP Section Card ─────────────────────────────────────────────────────────
+.icp-card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--heading-color);
+  margin: 0;
+}
+
+.icp-card-subtitle {
+  font-size: 0.75rem;
+  color: var(--general-color);
+  margin: 0.15rem 0 0;
+}
+
 .icp-card {
   background: #fff;
   border: 1px solid #f0e6e7;
@@ -314,19 +327,25 @@ body {
     padding: 1.25rem 1.5rem;
     border-bottom: 1px solid #f3f4f6;
     background: rgba(251,251,251,.7);
+  }
+}
 
-    .icp-card-title {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--heading-color);
-      margin: 0;
-    }
+// ─── ICP Form Section (a step within a form already boxed by .icp-form-card) ──
+// Plain divider instead of a nested card, so stepped forms don't render a
+// card-in-a-card.
+.icp-form-section {
+  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 1.75rem;
+  margin-bottom: 1.75rem;
 
-    .icp-card-subtitle {
-      font-size: 0.75rem;
-      color: var(--general-color);
-      margin: 0.15rem 0 0;
-    }
+  &:last-of-type {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
+  }
+
+  .icp-card-header {
+    padding: 0 0 1.25rem;
   }
 }
 

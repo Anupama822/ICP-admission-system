@@ -2,11 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Models\Course;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use App\Models\Course;
-use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
@@ -58,10 +57,11 @@ class DatabaseSeeder extends Seeder
         );
         $suman->syncPermissions(PermissionSeeder::defaultSlugs());
 
-Course::updateOrCreate(
+        Course::updateOrCreate(
             ['title' => 'BIT'],
             [
-                'id' => Str::uuid(),
+                'display_title' => 'BSc (Hons) Computing',
+                'levels' => ['04', '05', '06'],
                 'credits' => null,
                 'description' => null,
             ]
@@ -70,11 +70,11 @@ Course::updateOrCreate(
         Course::updateOrCreate(
             ['title' => 'BBA'],
             [
-                'id' => Str::uuid(),
+                'display_title' => 'BA (Hons) Business Administration',
+                'levels' => ['04', '05', '06', '07'],
                 'credits' => null,
                 'description' => null,
             ]
         );
-
     }
 }

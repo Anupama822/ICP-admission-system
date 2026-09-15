@@ -23,11 +23,11 @@
 </div>
 
 {{-- ── Student Information ── --}}
-<div class="icp-card mb-4 form-step" data-step="1">
+<div class="icp-form-section form-step" data-step="1">
     <div class="icp-card-header">
         <p class="icp-card-title">Student Information</p>
     </div>
-    <div class="p-3">
+    <div class="icp-form-section-body">
         <div class="row g-4">
             <div class="col-12 col-sm-4">
                 <label for="first_name" class="form-label fw-semibold small icp-label">First name</label>
@@ -143,11 +143,11 @@
 </div>
 
 {{-- ── Contact Information ── --}}
-<div class="icp-card mb-4 form-step" data-step="2">
+<div class="icp-form-section form-step" data-step="2">
     <div class="icp-card-header">
         <p class="icp-card-title">Contact Information</p>
     </div>
-    <div class="p-3">
+    <div class="icp-form-section-body">
         <div class="row g-4">
             <div class="col-12 col-sm-6">
                 <label for="permanent_address" class="form-label fw-semibold small icp-label">Permanent address</label>
@@ -190,11 +190,11 @@
 </div>
 
 {{-- ── Parent / Guardian Information ── --}}
-<div class="icp-card mb-4 form-step" data-step="3">
+<div class="icp-form-section form-step" data-step="3">
     <div class="icp-card-header">
         <p class="icp-card-title">Parent / Guardian Information</p>
     </div>
-    <div class="p-3">
+    <div class="icp-form-section-body">
         <div class="row g-4">
             <div class="col-12 col-sm-4">
                 <label for="father_full_name" class="form-label fw-semibold small icp-label">Father's full name</label>
@@ -266,12 +266,12 @@
 </div>
 
 {{-- ── Academic / Education Information ── --}}
-<div class="icp-card mb-4 form-step" data-step="4">
+<div class="icp-form-section form-step" data-step="4">
     <div class="icp-card-header">
         <p class="icp-card-title">Academic / Education Information</p>
         <p class="icp-card-subtitle">The highest / primary qualification below, plus any additional qualifications on file.</p>
     </div>
-    <div class="p-3">
+    <div class="icp-form-section-body">
         <div class="row g-4 mb-4">
             <div class="col-12 col-sm-4">
                 <label for="highest_qualification" class="form-label fw-semibold small icp-label">Highest qualification</label>
@@ -374,7 +374,7 @@
 </div>
 
 {{-- ── Course & Intake Information ── --}}
-<div class="icp-card mb-4 form-step" data-step="5">
+<div class="icp-form-section form-step" data-step="5">
     <div class="icp-card-header">
         <p class="icp-card-title">Course &amp; Intake Information</p>
         @if($item)
@@ -383,7 +383,7 @@
             <p class="icp-card-subtitle">The Student ID and class group are assigned automatically once this form is submitted.</p>
         @endif
     </div>
-    <div class="p-3">
+    <div class="icp-form-section-body">
         <div class="row g-4">
             <div class="col-12 col-sm-6">
                 <label for="course_id" class="form-label fw-semibold small icp-label">Course</label>
@@ -449,11 +449,11 @@
 </div>
 
 {{-- ── Medical Background ── --}}
-<div class="icp-card mb-4 form-step" data-step="6">
+<div class="icp-form-section form-step" data-step="6">
     <div class="icp-card-header">
         <p class="icp-card-title">Medical Background</p>
     </div>
-    <div class="p-3">
+    <div class="icp-form-section-body">
         <div class="row g-4">
             @foreach([
                 'has_disorder' => 'Do you have a mental or physical disorder that poses or is likely to pose a threat to the safety or welfare of yourself or others?',
@@ -476,12 +476,12 @@
 </div>
 
 {{-- ── Documents ── --}}
-<div class="icp-card mb-4 form-step" data-step="7">
+<div class="icp-form-section form-step" data-step="7">
     <div class="icp-card-header">
         <p class="icp-card-title">Documents</p>
         <p class="icp-card-subtitle">Attach scanned documents such as citizenship/passport and academic transcripts.</p>
     </div>
-    <div class="p-3">
+    <div class="icp-form-section-body">
         @if($item && $item->documents->isNotEmpty())
             <p class="fw-semibold small mb-2">Already on file</p>
             <ul class="list-unstyled mb-3 d-flex flex-column gap-2">
@@ -536,12 +536,12 @@
 </div>
 
 {{-- ── Digital Signature ── --}}
-<div class="icp-card mb-4 form-step" data-step="8">
+<div class="icp-form-section form-step" data-step="8">
     <div class="icp-card-header">
         <p class="icp-card-title">Digital Signature</p>
         <p class="icp-card-subtitle">Captured from the signotec signature pad connected to this computer.</p>
     </div>
-    <div class="p-3">
+    <div class="icp-form-section-body">
         @if($item?->signature_path)
             <p class="small mb-2">Current signature on file:</p>
             <img src="{{ Storage::url($item->signature_path) }}" alt="Current signature" style="height:60px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px" class="mb-3 d-block">

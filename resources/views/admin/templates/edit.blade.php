@@ -3,8 +3,13 @@
 @section('title', 'Edit '.$title)
 
 @section('content')
-<div class="row justify-content-center my-4">
-    <div class="col-12 {{ ($wide ?? false) ? 'col-lg-11' : 'col-md-10 col-lg-7' }}">
+{{--
+    AdminLTE's .app-content adds its own fixed 0.5rem side padding on top of
+    the Bootstrap grid gutter; a wide form breaks out of both so the card
+    sits flush with the sidebar/topbar instead of leaving a visible margin.
+--}}
+<div class="row justify-content-center my-4" @if($wide ?? false) style="margin-left:calc(var(--bs-gutter-x, 1.5rem) * -.5 - .5rem);margin-right:calc(var(--bs-gutter-x, 1.5rem) * -.5 - .5rem)" @endif>
+    <div class="col-12 {{ ($wide ?? false) ? 'px-0' : 'col-md-10 col-lg-7' }}">
 
         <div class="icp-form-card">
 

@@ -29,9 +29,9 @@ return new class extends Migration
             $table->string('dob_bs')->nullable();
             $table->date('dob_ad');
             $table->string('citizenship_number')->nullable()->unique();
-            $table->date('citizenship_issued_date')->nullable();
+            $table->string('citizenship_issued_date')->nullable();
             $table->string('passport_number')->nullable()->unique();
-            $table->date('passport_issued_date')->nullable();
+            $table->string('passport_issued_date')->nullable();
             $table->date('declared_date');
             $table->string('photo_path')->nullable();
 
@@ -45,26 +45,22 @@ return new class extends Migration
 
             // Contact details.
             $table->string('permanent_address');
-            $table->string('corresponding_address');
-            $table->string('mobile');
-            $table->string('email_1');
+            $table->string('corresponding_address')->nullable();
+            $table->string('mobile')->nullable();
+            $table->string('email_1')->nullable();
             $table->string('email_2')->nullable();
 
             // Parent / guardian details.
-            $table->string('father_full_name');
-            $table->string('father_mobile');
+            $table->string('father_full_name')->nullable();
+            $table->string('father_mobile')->nullable();
             $table->string('father_email')->nullable();
-            $table->string('mother_full_name');
-            $table->string('mother_mobile');
+            $table->string('mother_full_name')->nullable();
+            $table->string('mother_mobile')->nullable();
             $table->string('mother_email')->nullable();
             $table->string('guardian_full_name')->nullable();
             $table->string('guardian_contact')->nullable();
+            $table->string('guardian_relationship')->nullable();
             $table->string('guardian_email')->nullable();
-
-            // Academic summary (the "primary" qualification).
-            $table->string('highest_qualification');
-            $table->string('awarding_body');
-            $table->text('qualification_description')->nullable();
 
             // Medical background.
             $table->boolean('has_disorder')->default(false);

@@ -16,8 +16,8 @@ return new class extends Migration
             $table->string('title')->unique();
             $table->decimal('credits', 4, 1)->nullable();
             $table->text('description')->nullable();
-            $table->string('display_title')->nullable()->after('title');
-            $table->json('levels')->nullable()->after('display_title');
+            $table->string('display_title')->nullable();
+            $table->json('levels')->nullable();
             $table->timestamps();
         });
     }

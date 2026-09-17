@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('subject');
             $table->string('institute_name');
             $table->string('score')->nullable();
+            $table->string('score_type')->nullable();
             $table->string('document_path')->nullable();
             $table->unsignedInteger('sort_order')->default(0);
             $table->timestamps();

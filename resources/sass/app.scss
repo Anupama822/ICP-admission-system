@@ -535,6 +535,7 @@ body {
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 1px 6px rgba(0,0,0,.04);
+  margin-inline: 1rem;
 
   .icp-form-header {
     padding: 1.5rem 2rem;
@@ -674,6 +675,74 @@ body {
   }
 }
 
+// ─── Select2 (searchable/creatable dropdowns): match .icp-input's look ────────
+.select2-container {
+  width: 100% !important;
+
+  .select2-selection--single {
+    height: calc(1.5rem + .75rem + 2px) !important;
+    font-size: 1rem;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 10px !important;
+    display: flex !important;
+    align-items: center;
+    padding: 0 .75rem !important;
+
+    .select2-selection__rendered {
+      padding: 0 !important;
+      line-height: 1.5 !important;
+      color: var(--heading-color);
+    }
+
+    .select2-selection__placeholder { color: #6c757d; }
+
+    .select2-selection__arrow {
+      height: 100% !important;
+      top: 0 !important;
+      right: .5rem !important;
+    }
+  }
+
+  &.select2-container--disabled .select2-selection--single {
+    background: var(--background-color);
+  }
+}
+
+.select2-container--default {
+  &.select2-container--focus .select2-selection--single,
+  &.select2-container--open .select2-selection--single {
+    border-color: var(--btn-color) !important;
+    box-shadow: 0 0 0 .2rem var(--icp-crimson-10);
+  }
+}
+
+.select2-dropdown {
+  border-color: #e5e7eb !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(0,0,0,.08);
+}
+
+.select2-search--dropdown {
+  padding: .5rem;
+
+  .select2-search__field {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 8px !important;
+    padding: .375rem .6rem !important;
+
+    &:focus {
+      outline: none;
+      border-color: var(--btn-color) !important;
+      box-shadow: 0 0 0 .2rem var(--icp-crimson-10);
+    }
+  }
+}
+
+.select2-results__option--highlighted[aria-selected] {
+  background-color: var(--btn-color) !important;
+}
+
 .icp-form-check .form-check-input:checked {
   background-color: var(--btn-color);
   border-color: var(--btn-color);
@@ -711,6 +780,56 @@ body {
 
   svg { color: var(--btn-color); }
   p { line-height: 1.6; }
+}
+
+// Rounded avatar-style photo picker, matching how the photo is cropped on
+// the printed/PDF enrollment form (circular, object-fit: cover).
+.icp-photo-picker {
+  width: 88px;
+  height: 88px;
+}
+
+.icp-photo-preview,
+.icp-photo-placeholder {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: 2px solid #e5e7eb;
+}
+
+.icp-photo-preview {
+  object-fit: cover;
+  background: var(--background-color);
+}
+
+.icp-photo-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  color: var(--general-color);
+
+  svg { width: 34px; height: 34px; }
+}
+
+.icp-photo-edit-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--btn-color);
+  color: #fff;
+  border: 2px solid #fff;
+  cursor: pointer;
+
+  svg { width: 14px; height: 14px; }
+
+  &:hover { background: #971F20; }
 }
 
 .icp-detail-list {

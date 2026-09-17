@@ -17,6 +17,9 @@ class Student extends Model
     /** Enrollments are grouped into classes of this size: C1, C2, ... */
     private const GROUP_SIZE = 30;
 
+    /** Allowed values for the `entry_type` column. */
+    public const ENTRY_TYPES = ['Standard', 'Non-standard'];
+
     protected $fillable = [
         'admission_id',
         'admission_year_id',
@@ -52,11 +55,9 @@ class Student extends Model
         'mother_mobile',
         'mother_email',
         'guardian_full_name',
+        'guardian_relationship',
         'guardian_contact',
         'guardian_email',
-        'highest_qualification',
-        'awarding_body',
-        'qualification_description',
         'has_disorder',
         'is_drug_abuser',
         'has_criminal_record',
@@ -69,8 +70,9 @@ class Student extends Model
     {
         return [
             'dob_ad' => 'date',
-            'citizenship_issued_date' => 'date',
-            'passport_issued_date' => 'date',
+            // citizenship_issued_date / passport_issued_date are recorded in
+            // the Bikram Sambat (BS) calendar, like dob_bs, so they stay
+            // plain strings rather than Carbon-cast Gregorian dates.
             'declared_date' => 'date',
             'has_disorder' => 'boolean',
             'is_drug_abuser' => 'boolean',

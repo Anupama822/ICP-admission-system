@@ -4,6 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\AdmissionYear;
 use App\Models\Course;
+use App\Models\DocumentType;
+use App\Models\Faculty;
+use App\Models\Institute;
 use App\Models\Student;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
@@ -24,6 +27,8 @@ class StudentCrudTest extends TestCase
 
     private Course $course;
 
+    private DocumentType $documentType;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -31,6 +36,10 @@ class StudentCrudTest extends TestCase
         Storage::fake('public');
 
         $this->seed(PermissionSeeder::class);
+
+        $this->documentType = DocumentType::create(['name' => 'Academic']);
+        Institute::create(['name' => 'Example School']);
+        Institute::create(['name' => 'Sagarmatha Secondary School']);
 
         $this->admin = User::create([
             'name' => 'Admin',
@@ -41,7 +50,7 @@ class StudentCrudTest extends TestCase
             'position' => 'Administrator',
         ]);
 
-        $this->admissionYear = AdmissionYear::factory()->create(['year' => '2026']);
+        $this->admissionYear = AdmissionYear::factory()->active()->create(['year' => '2026']);
         $this->course = Course::factory()->create();
     }
 
@@ -74,6 +83,11 @@ class StudentCrudTest extends TestCase
         return array_merge([
             'admission_year_id' => $this->admissionYear->id,
             'course_id' => $this->course->id,
+            'highest_qualification' => [
+                'document_type' => 'Academic',
+                'faculty' => 'Science',
+                'institute_name' => 'Example School',
+            ],
             'first_name' => 'Krish',
             'middle_name' => '',
             'last_name' => 'Shai',
@@ -94,8 +108,6 @@ class StudentCrudTest extends TestCase
             'father_mobile' => '9801132234',
             'mother_full_name' => 'Asha Shai',
             'mother_mobile' => '9846166557',
-            'highest_qualification' => 'NEB',
-            'awarding_body' => 'Sagarmatha Secondary School',
             'has_disorder' => '0',
             'is_drug_abuser' => '0',
             'has_criminal_record' => '0',
@@ -135,12 +147,24 @@ class StudentCrudTest extends TestCase
     public function admin_can_enroll_a_student_with_qualifications_and_documents(): void
     {
         $payload = $this->payload([
+            'highest_qualification' => [
+                'document_type' => 'Academic', 'awarded_year' => '2023', 'faculty' => 'Management', 'institute_name' => 'Sagarmatha Secondary School',
+                'score' => '3.705', 'score_type' => 'CGPA', 'qualification_description' => 'NEB +2 (CGPA-3.705 Year 12 Eng-A)',
+            ],
             'qualifications' => [
-                ['document_type' => 'Academic', 'awarded_year' => '2021', 'subject' => 'SEE', 'institute_name' => 'Mount Annapurna School', 'score' => 'GPA-3.80'],
-                ['document_type' => 'Academic', 'awarded_year' => '2023', 'subject' => 'Management', 'institute_name' => 'Sagarmatha Secondary School', 'score' => 'CGPA-3.19'],
+                [
+                    'document_type' => 'Academic', 'awarded_year' => '2021', 'faculty' => 'SEE', 'institute_name' => 'Mount Annapurna School', 'score' => '3.80', 'score_type' => 'GPA',
+                    'documents' => [
+                        UploadedFile::fake()->image('see-marksheet.jpg'),
+                        UploadedFile::fake()->image('see-certificate.jpg'),
+                    ],
+                ],
             ],
             'documents' => [
-                ['title' => 'Citizenship', 'file' => UploadedFile::fake()->create('citizenship.pdf', 100, 'application/pdf')],
+                ['title' => 'Citizenship', 'files' => [
+                    UploadedFile::fake()->create('citizenship-front.pdf', 100, 'application/pdf'),
+                    UploadedFile::fake()->create('citizenship-back.pdf', 100, 'application/pdf'),
+                ]],
             ],
         ]);
 
@@ -155,8 +179,115 @@ class StudentCrudTest extends TestCase
         $this->assertNotNull($student->signature_path);
         Storage::disk('public')->assertExists($student->signature_path);
         $this->assertCount(2, $student->qualifications);
-        $this->assertCount(1, $student->documents);
+
+        $highest = $student->qualifications->firstWhere('is_highest', true);
+        $this->assertNotNull($highest);
+        $this->assertSame('Management', $highest->faculty);
+        $this->assertSame('NEB +2 (CGPA-3.705 Year 12 Eng-A)', $highest->qualification_description);
+
+        $additional = $student->qualifications->firstWhere('is_highest', false);
+        $this->assertSame('SEE', $additional->faculty);
+        $this->assertSame('GPA', $additional->score_type);
+        $this->assertCount(2, $additional->documents);
+        Storage::disk('public')->assertExists($additional->documents->first()->file_path);
+
+        $this->assertCount(2, $student->documents);
         Storage::disk('public')->assertExists($student->documents->first()->file_path);
+    }
+
+    #[Test]
+    public function admin_can_add_multiple_qualification_descriptions_each_with_its_own_board(): void
+    {
+        $seeBoard = DocumentType::create(['name' => 'SEE']);
+
+        $payload = $this->payload([
+            'qualifications' => [
+                [
+                    'document_type' => $seeBoard->name,
+                    'qualification_description' => 'SEE (Agg GPA-3.35 / English A, Maths B)',
+                    'documents' => [UploadedFile::fake()->image('see.jpg')],
+                ],
+                [
+                    'document_type' => $this->documentType->name,
+                    'qualification_description' => 'NEB +2 (CGPA-3.70 Year 12 Eng-A)',
+                ],
+            ],
+        ]);
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.students.store'), $payload)
+            ->assertRedirect(route('admin.students.index'));
+
+        $student = Student::where('email_1', 'krish@example.test')->firstOrFail();
+        $descriptions = $student->qualifications->where('is_highest', false);
+
+        $this->assertCount(2, $descriptions);
+        $see = $descriptions->firstWhere('document_type', 'SEE');
+        $this->assertSame('SEE (Agg GPA-3.35 / English A, Maths B)', $see->qualification_description);
+        $this->assertNull($see->faculty);
+        $this->assertNull($see->institute_name);
+        $this->assertCount(1, $see->documents);
+    }
+
+    #[Test]
+    public function qualification_description_requires_an_educational_board(): void
+    {
+        $payload = $this->payload([
+            'qualifications' => [
+                ['qualification_description' => 'Missing a board'],
+            ],
+        ]);
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.students.store'), $payload)
+            ->assertSessionHasErrors('qualifications.0.document_type');
+    }
+
+    #[Test]
+    public function admin_can_add_academic_qualification_records_with_document_type_forced_to_academic(): void
+    {
+        $faculty = Faculty::create(['name' => 'Management']);
+        $institute = Institute::create(['name' => 'Prativa Secondary School, Pokhara-03, Nadipur, Nepal']);
+
+        $payload = $this->payload([
+            'academic_records' => [
+                [
+                    'document_type' => 'Whatever the client sends is ignored',
+                    'awarded_year' => '2024',
+                    'faculty' => $faculty->name,
+                    'institute_name' => $institute->name,
+                    'score' => 'CGPA-3.705',
+                ],
+            ],
+        ]);
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.students.store'), $payload)
+            ->assertRedirect(route('admin.students.index'));
+
+        $student = Student::where('email_1', 'krish@example.test')->firstOrFail();
+        $record = $student->qualifications->firstWhere('is_record', true);
+
+        $this->assertNotNull($record);
+        $this->assertSame('Academic', $record->document_type);
+        $this->assertSame('Management', $record->faculty);
+        $this->assertSame('Prativa Secondary School, Pokhara-03, Nadipur, Nepal', $record->institute_name);
+        $this->assertSame('CGPA-3.705', $record->score);
+        $this->assertSame(2024, $record->awarded_year);
+    }
+
+    #[Test]
+    public function academic_qualification_record_requires_a_registered_faculty(): void
+    {
+        $payload = $this->payload([
+            'academic_records' => [
+                ['faculty' => 'Not A Real Faculty', 'institute_name' => 'Some School'],
+            ],
+        ]);
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.students.store'), $payload)
+            ->assertSessionHasErrors('academic_records.0.faculty');
     }
 
     #[Test]
@@ -190,6 +321,28 @@ class StudentCrudTest extends TestCase
     }
 
     #[Test]
+    public function highest_qualification_only_needs_an_educational_board_and_awarding_body(): void
+    {
+        $payload = $this->payload([
+            'highest_qualification' => [
+                'document_type' => 'Academic',
+                'institute_name' => 'Sagarmatha Secondary School',
+            ],
+        ]);
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.students.store'), $payload)
+            ->assertRedirect(route('admin.students.index'));
+
+        $student = Student::where('email_1', 'krish@example.test')->firstOrFail();
+        $highest = $student->qualifications->firstWhere('is_highest', true);
+
+        $this->assertNotNull($highest);
+        $this->assertSame('Sagarmatha Secondary School', $highest->institute_name);
+        $this->assertNull($highest->faculty);
+    }
+
+    #[Test]
     public function admission_id_is_unique_at_the_database_level(): void
     {
         Student::factory()->create(['admission_id' => '20260001']);
@@ -209,10 +362,38 @@ class StudentCrudTest extends TestCase
     }
 
     #[Test]
+    public function highest_qualification_and_documents_survive_a_validation_error_redisplay(): void
+    {
+        $payload = $this->payload([
+            'citizenship_number' => null,
+            'passport_number' => null,
+            'highest_qualification' => [
+                'document_type' => 'Academic',
+                'institute_name' => 'Sagarmatha Secondary School',
+            ],
+            'documents' => [
+                ['title' => 'My Custom Document'],
+            ],
+        ]);
+
+        $this->actingAs($this->admin)
+            ->from(route('admin.students.create'))
+            ->post(route('admin.students.store'), $payload)
+            ->assertSessionHasErrors('citizenship_number')
+            ->assertRedirect(route('admin.students.create'));
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.students.create'))
+            ->assertOk()
+            ->assertSee('Sagarmatha Secondary School')
+            ->assertSee('My Custom Document');
+    }
+
+    #[Test]
     public function admin_can_update_a_student_and_replace_qualifications(): void
     {
         $student = Student::factory()->create(['admission_year_id' => $this->admissionYear->id, 'course_id' => $this->course->id]);
-        $student->qualifications()->create(['document_type' => 'Academic', 'subject' => 'Old Subject', 'institute_name' => 'Old Institute', 'sort_order' => 0]);
+        $student->qualifications()->create(['document_type' => 'Academic', 'faculty' => 'Old Faculty', 'institute_name' => 'Old Institute', 'sort_order' => 0]);
 
         $payload = $this->payload([
             'email_1' => $student->email_1,
@@ -220,7 +401,7 @@ class StudentCrudTest extends TestCase
             'last_name' => 'Updated',
             'signature' => '',
             'qualifications' => [
-                ['document_type' => 'Academic', 'subject' => 'New Subject', 'institute_name' => 'New Institute', 'awarded_year' => '2024'],
+                ['document_type' => 'Academic', 'faculty' => 'New Faculty', 'institute_name' => 'New Institute', 'awarded_year' => '2024'],
             ],
         ]);
 
@@ -230,8 +411,9 @@ class StudentCrudTest extends TestCase
 
         $student->refresh();
         $this->assertSame('Updated', $student->last_name);
-        $this->assertCount(1, $student->qualifications);
-        $this->assertSame('New Subject', $student->qualifications->first()->subject);
+        $this->assertCount(2, $student->qualifications);
+        $this->assertSame('New Faculty', $student->qualifications->firstWhere('is_highest', false)->faculty);
+        $this->assertSame('Science', $student->qualifications->firstWhere('is_highest', true)->faculty);
     }
 
     #[Test]

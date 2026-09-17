@@ -1,12 +1,71 @@
 @php
     $item = $item ?? null;
-    $qualifications = $item?->qualifications ?? collect();
+
+    // Prefer previously-submitted data (a validation failure elsewhere on
+    // the form shouldn't wipe out what the admin already typed in) over
+    // what's on file.
+    $oldHighestQualification = old('highest_qualification');
+    if (is_array($oldHighestQualification)) {
+        $highestQualification = $oldHighestQualification;
+    } else {
+        $highestModel = $item?->qualifications->firstWhere('is_highest', true) ?? $item?->qualifications->first();
+        $highestQualification = $highestModel ? [
+            'document_type' => $highestModel->document_type,
+            'institute_name' => $highestModel->institute_name,
+        ] : [];
+    }
+
+    // Qualification descriptions are a repeatable list, each with its own
+    // educational board, kept separate from the single required "highest
+    // education" record above.
+    $normalizeQualificationDescription = fn ($qualification) => [
+        'document_type' => $qualification->document_type,
+        'qualification_description' => $qualification->qualification_description,
+        'existing_documents' => $qualification->documents->map(fn ($document) => [
+            'file_path' => $document->file_path,
+            'original_filename' => $document->original_filename,
+        ])->all(),
+    ];
+
+    $oldQualifications = old('qualifications');
+    if (is_array($oldQualifications)) {
+        $qualifications = collect($oldQualifications)->values();
+    } elseif ($item) {
+        $qualifications = $item->qualifications->where('is_highest', false)->where('is_record', false)->values()->map($normalizeQualificationDescription);
+    } else {
+        $qualifications = collect();
+    }
+
+    // Academic Qualifications: another repeatable list, matching the format
+    // of the old paper record (Document Type/Awarded Year/Faculty/Institute/
+    // Score). Document Type is always "Academic" here.
+    $normalizeAcademicRecord = fn ($qualification) => [
+        'awarded_year' => $qualification->awarded_year,
+        'faculty' => $qualification->faculty,
+        'institute_name' => $qualification->institute_name,
+        'score' => $qualification->score,
+    ];
+
+    $oldAcademicRecords = old('academic_records');
+    if (is_array($oldAcademicRecords)) {
+        $academicRecords = collect($oldAcademicRecords)->values();
+    } elseif ($item) {
+        $academicRecords = $item->qualifications->where('is_record', true)->values()->map($normalizeAcademicRecord);
+    } else {
+        $academicRecords = collect();
+    }
+
+    // Same idea for the "Add documents" rows: only their title (plain text)
+    // survives a validation failure, since browsers never let a page refill
+    // a file input, but that's still one less thing to retype.
+    $oldDocumentRows = collect(old('documents', []))->values();
+
     $formSteps = [
-        1 => 'Student Info',
-        2 => 'Contact',
-        3 => 'Parent / Guardian',
-        4 => 'Academic',
-        5 => 'Course & Intake',
+        1 => 'Course & Intake',
+        2 => 'Student Info',
+        3 => 'Contact',
+        4 => 'Parent / Guardian',
+        5 => 'Academic',
         6 => 'Medical',
         7 => 'Documents',
         8 => 'Signature',
@@ -22,13 +81,115 @@
     @endforeach
 </div>
 
-{{-- ── Student Information ── --}}
+{{-- ── Course & Intake Information ── --}}
 <div class="icp-form-section form-step" data-step="1">
+    <div class="icp-card-header">
+        <p class="icp-card-title">Course &amp; Intake Information</p>
+
+        {{-- Info bar: Student ID / Group / Admission Year shown side by side --}}
+        <div class="icp-info-bar d-flex flex-wrap gap-3 mb-4 justify-content-between align-items-center">
+            @if($item)
+                <div class="icp-info-chip">
+                    <span class="icp-info-label">Student ID</span>
+                    <span class="icp-info-value">{{ $item->admission_id }}</span>
+                </div>
+                <div class="icp-info-chip">
+                    <span class="icp-info-label">Group</span>
+                    <span class="icp-info-value">{{ $item->group }}</span>
+                    <span class="icp-info-badge">auto-assigned</span>
+                </div>
+            @else
+                <div class="icp-info-chip icp-info-chip-muted">
+                    <span class="icp-info-value">Student ID &amp; group are assigned automatically on submit.</span>
+                </div>
+            @endif
+
+            <div class="d-flex justify-content-end ">
+            @if($selectedAdmissionYear)
+                <div class="icp-info-chip d-flex justify-content-end align-items-center text-muted icp-note gap-2 p-2 rounded-3 mb-0">
+                    @svg('heroicon-m-calendar-days', 'icp-icon-sm flex-shrink-0')
+                    <div>
+                        <span class="icp-info-label">{{ $item ? 'Admission year' : 'Enrolling under' }}</span>
+                        <span class="icp-info-value">{{ $selectedAdmissionYear->title }} &middot; {{ $selectedAdmissionYear->intake }} intake</span>
+                    </div>
+                </div>
+                <input type="hidden" name="admission_year_id" value="{{ $selectedAdmissionYearId }}">
+            @else
+                <div class="icp-info-chip icp-info-chip-danger">
+                    @svg('heroicon-m-exclamation-triangle', 'icp-icon-sm flex-shrink-0')
+                    <span class="icp-info-value">No active admission year. <a href="{{ route('admission-year.index') }}">Activate one</a> to continue.</span>
+                </div>
+            @endif
+            </div>
+        </div>
+        @error('admission_year_id') <div class="text-danger small mb-3">{{ $message }}</div> @enderror
+    </div>
+
+    <div class="icp-form-section-body">
+        <div class="row g-4">
+            <div class="col-12 col-sm-6">
+                <label for="course_id" class="form-label fw-semibold small icp-label">Course</label>
+                <select id="course_id" name="course_id" required class="form-select icp-input @error('course_id') is-invalid @enderror">
+                    <option value="" disabled @selected(! $selectedCourseId)>Select a course&hellip;</option>
+                    @foreach($courses as $course)
+                        <option value="{{ $course->id }}" data-levels='@json($course->levels ?? [])' @selected($selectedCourseId === $course->id)>{{ $course->title }}</option>
+                    @endforeach
+                </select>
+                @error('course_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+
+            <div class="col-12 col-sm-6">
+                <label for="level" class="form-label fw-semibold small icp-label">Level</label>
+                <select id="level" name="level" required class="form-select icp-input @error('level') is-invalid @enderror">
+                    <option value="" disabled @selected(! $selectedLevel)>{{ $selectedCourse ? 'Select a level…' : 'Select a course first…' }}</option>
+                    @foreach($selectedCourse?->levels ?? [] as $levelOption)
+                        <option value="{{ $levelOption }}" @selected($selectedLevel === $levelOption)>{{ $levelOption }}</option>
+                    @endforeach
+                </select>
+                @error('level') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+
+            <div class="col-12 col-sm-6">
+                <label for="entry_type" class="form-label fw-semibold small icp-label">Entry type</label>
+                <select id="entry_type" name="entry_type" required class="form-select icp-input @error('entry_type') is-invalid @enderror">
+                    <option value="" disabled @selected(! old('entry_type', $item?->entry_type))>Select entry type&hellip;</option>
+                    @foreach($entryTypeOptions as $option)
+                        <option value="{{ $option }}" @selected(old('entry_type', $item?->entry_type) === $option)>{{ $option }}</option>
+                    @endforeach
+                </select>
+                @error('entry_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ── Student Information ── --}}
+<div class="icp-form-section form-step" data-step="2">
     <div class="icp-card-header">
         <p class="icp-card-title">Student Information</p>
     </div>
     <div class="icp-form-section-body">
         <div class="row g-4">
+            <div class="col-12">
+                <label class="form-label fw-semibold small icp-label">Photo <span class="text-muted fw-normal">(JPG, optional)</span></label>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="icp-photo-picker position-relative flex-shrink-0">
+                        <img id="photo-preview" src="{{ $item?->photo_path ? Storage::url($item->photo_path) : '' }}"
+                            alt="Student photo" class="icp-photo-preview" style="{{ $item?->photo_path ? '' : 'display:none' }}">
+                        <div id="photo-placeholder" class="icp-photo-placeholder" style="{{ $item?->photo_path ? 'display:none' : '' }}">
+                            @svg('heroicon-m-user')
+                        </div>
+                        <label for="photo" class="icp-photo-edit-btn" title="{{ $item?->photo_path ? 'Replace photo' : 'Upload photo' }}">
+                            @svg('heroicon-m-camera')
+                        </label>
+                    </div>
+                    <div>
+                        <input id="photo" name="photo" type="file" accept="image/jpeg" class="d-none @error('photo') is-invalid @enderror">
+                        @error('photo') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                    </div>
+                </div>
+            </div>
+        
             <div class="col-12 col-sm-4">
                 <label for="first_name" class="form-label fw-semibold small icp-label">First name</label>
                 <input id="first_name" name="first_name" type="text" required
@@ -51,13 +212,7 @@
                 @error('last_name') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
 
-            <div class="col-12 col-sm-6">
-                <label for="certificate_name" class="form-label fw-semibold small icp-label">Name appearing on certificate</label>
-                <input id="certificate_name" name="certificate_name" type="text" required
-                    value="{{ old('certificate_name', $item?->certificate_name) }}"
-                    class="form-control icp-input @error('certificate_name') is-invalid @enderror">
-                @error('certificate_name') <div class="invalid-feedback">{{ $message }}</div> @enderror
-            </div>
+            
             <div class="col-12 col-sm-6">
                 <label for="gender" class="form-label fw-semibold small icp-label">Gender</label>
                 <select id="gender" name="gender" required class="form-select icp-input @error('gender') is-invalid @enderror">
@@ -93,14 +248,17 @@
             <div class="col-12 col-sm-6">
                 <label for="citizenship_number" class="form-label fw-semibold small icp-label">Citizenship number</label>
                 <input id="citizenship_number" name="citizenship_number" type="text"
+                    placeholder="e.g. 12-34-56-78901"
+                    pattern="\d{2}-\d{2}-\d{2}-\d{5}"
+                    title="Format: 12-34-56-78901"
                     value="{{ old('citizenship_number', $item?->citizenship_number) }}"
                     class="form-control icp-input @error('citizenship_number') is-invalid @enderror">
                 @error('citizenship_number') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-12 col-sm-6">
-                <label for="citizenship_issued_date" class="form-label fw-semibold small icp-label">Citizenship issued date</label>
-                <input id="citizenship_issued_date" name="citizenship_issued_date" type="date"
-                    value="{{ old('citizenship_issued_date', $item?->citizenship_issued_date?->format('Y-m-d')) }}"
+                <label for="citizenship_issued_date" class="form-label fw-semibold small icp-label">Citizenship issued date (BS)</label>
+                <input id="citizenship_issued_date" name="citizenship_issued_date" type="text" placeholder="e.g. 2062-03-05"
+                    value="{{ old('citizenship_issued_date', $item?->citizenship_issued_date) }}"
                     class="form-control icp-input @error('citizenship_issued_date') is-invalid @enderror">
                 @error('citizenship_issued_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
@@ -108,42 +266,29 @@
             <div class="col-12 col-sm-6">
                 <label for="passport_number" class="form-label fw-semibold small icp-label">Passport number</label>
                 <input id="passport_number" name="passport_number" type="text"
+                    placeholder="e.g. PA1234567"
+                    pattern="[A-Za-z]{2}[0-9]{7}"
+                    title="Format: PA1234567"
                     value="{{ old('passport_number', $item?->passport_number) }}"
                     class="form-control icp-input @error('passport_number') is-invalid @enderror">
                 @error('passport_number') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-12 col-sm-6">
-                <label for="passport_issued_date" class="form-label fw-semibold small icp-label">Passport issued date</label>
-                <input id="passport_issued_date" name="passport_issued_date" type="date"
-                    value="{{ old('passport_issued_date', $item?->passport_issued_date?->format('Y-m-d')) }}"
+                <label for="passport_issued_date" class="form-label fw-semibold small icp-label">Passport issued date (BS)</label>
+                <input id="passport_issued_date" name="passport_issued_date" type="text" placeholder="e.g. 2062-03-05"
+                    value="{{ old('passport_issued_date', $item?->passport_issued_date) }}"
                     class="form-control icp-input @error('passport_issued_date') is-invalid @enderror">
                 @error('passport_issued_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
 
-            <div class="col-12 col-sm-6">
-                <label for="declared_date" class="form-label fw-semibold small icp-label">Declared date</label>
-                <input id="declared_date" name="declared_date" type="date" required
-                    value="{{ old('declared_date', $item?->declared_date?->format('Y-m-d') ?? now()->format('Y-m-d')) }}"
-                    class="form-control icp-input @error('declared_date') is-invalid @enderror">
-                @error('declared_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
-            </div>
-            <div class="col-12 col-sm-6">
-                <label for="photo" class="form-label fw-semibold small icp-label">Photo <span class="text-muted fw-normal">(JPG, optional)</span></label>
-                <input id="photo" name="photo" type="file" accept="image/jpeg"
-                    class="form-control icp-input @error('photo') is-invalid @enderror">
-                @error('photo') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                @if($item?->photo_path)
-                    <div class="form-text small">
-                        Current: <img src="{{ Storage::url($item->photo_path) }}" alt="Current photo" style="height:28px;border-radius:6px;vertical-align:middle">
-                    </div>
-                @endif
-            </div>
+            
+            
         </div>
     </div>
 </div>
 
 {{-- ── Contact Information ── --}}
-<div class="icp-form-section form-step" data-step="2">
+<div class="icp-form-section form-step" data-step="3`">
     <div class="icp-card-header">
         <p class="icp-card-title">Contact Information</p>
     </div>
@@ -157,23 +302,23 @@
                 @error('permanent_address') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-12 col-sm-6">
-                <label for="corresponding_address" class="form-label fw-semibold small icp-label">Corresponding address</label>
-                <input id="corresponding_address" name="corresponding_address" type="text" required
+                <label for="corresponding_address" class="form-label fw-semibold small icp-label">Corresponding address <span class="text-muted fw-normal">(optional)</span></label>
+                <input id="corresponding_address" name="corresponding_address" type="text" 
                     value="{{ old('corresponding_address', $item?->corresponding_address) }}"
                     class="form-control icp-input @error('corresponding_address') is-invalid @enderror">
                 @error('corresponding_address') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
 
             <div class="col-12 col-sm-4">
-                <label for="mobile" class="form-label fw-semibold small icp-label">Mobile</label>
-                <input id="mobile" name="mobile" type="text" required
+                <label for="mobile" class="form-label fw-semibold small icp-label">Mobile <span class="text-muted fw-normal">(optional)</span></label>
+                <input id="mobile" name="mobile" type="text" 
                     value="{{ old('mobile', $item?->mobile) }}"
                     class="form-control icp-input @error('mobile') is-invalid @enderror">
                 @error('mobile') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-12 col-sm-4">
-                <label for="email_1" class="form-label fw-semibold small icp-label">Email address</label>
-                <input id="email_1" name="email_1" type="email" required
+                <label for="email_1" class="form-label fw-semibold small icp-label">Email address <span class="text-muted fw-normal">(optional)</span></label>
+                <input id="email_1" name="email_1" type="email" 
                     value="{{ old('email_1', $item?->email_1) }}"
                     class="form-control icp-input @error('email_1') is-invalid @enderror">
                 @error('email_1') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -190,28 +335,35 @@
 </div>
 
 {{-- ── Parent / Guardian Information ── --}}
-<div class="icp-form-section form-step" data-step="3">
+<div class="icp-form-section form-step" data-step="4">
     <div class="icp-card-header">
         <p class="icp-card-title">Parent / Guardian Information</p>
     </div>
     <div class="icp-form-section-body">
         <div class="row g-4">
+            <div class="col-12">
+                <div class="icp-note d-flex gap-3 p-3 rounded-3 mb-0">
+                    @svg('heroicon-m-information-circle', 'icp-icon-sm flex-shrink-0 mt-1')
+                    <p class="mb-0 small">Provide at least one parent or guardian's information below.</p>
+                </div>
+                @error('father_full_name') <div class="text-danger small mt-2">{{ $message }}</div> @enderror
+            </div>
+
             <div class="col-12 col-sm-4">
                 <label for="father_full_name" class="form-label fw-semibold small icp-label">Father's full name</label>
-                <input id="father_full_name" name="father_full_name" type="text" required
+                <input id="father_full_name" name="father_full_name" type="text"
                     value="{{ old('father_full_name', $item?->father_full_name) }}"
                     class="form-control icp-input @error('father_full_name') is-invalid @enderror">
-                @error('father_full_name') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-12 col-sm-4">
                 <label for="father_mobile" class="form-label fw-semibold small icp-label">Father's mobile</label>
-                <input id="father_mobile" name="father_mobile" type="text" required
+                <input id="father_mobile" name="father_mobile" type="text"
                     value="{{ old('father_mobile', $item?->father_mobile) }}"
                     class="form-control icp-input @error('father_mobile') is-invalid @enderror">
                 @error('father_mobile') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-12 col-sm-4">
-                <label for="father_email" class="form-label fw-semibold small icp-label">Father's email <span class="text-muted fw-normal">(optional)</span></label>
+                <label for="father_email" class="form-label fw-semibold small icp-label">Father's email </label>
                 <input id="father_email" name="father_email" type="email"
                     value="{{ old('father_email', $item?->father_email) }}"
                     class="form-control icp-input @error('father_email') is-invalid @enderror">
@@ -219,43 +371,50 @@
             </div>
 
             <div class="col-12 col-sm-4">
-                <label for="mother_full_name" class="form-label fw-semibold small icp-label">Mother's full name</label>
-                <input id="mother_full_name" name="mother_full_name" type="text" required
+                <label for="mother_full_name" class="form-label fw-semibold small icp-label">Mother's full name </label>
+                <input id="mother_full_name" name="mother_full_name" type="text"
                     value="{{ old('mother_full_name', $item?->mother_full_name) }}"
                     class="form-control icp-input @error('mother_full_name') is-invalid @enderror">
                 @error('mother_full_name') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-12 col-sm-4">
-                <label for="mother_mobile" class="form-label fw-semibold small icp-label">Mother's mobile</label>
-                <input id="mother_mobile" name="mother_mobile" type="text" required
+                <label for="mother_mobile" class="form-label fw-semibold small icp-label">Mother's mobile </label>
+                <input id="mother_mobile" name="mother_mobile" type="text"
                     value="{{ old('mother_mobile', $item?->mother_mobile) }}"
                     class="form-control icp-input @error('mother_mobile') is-invalid @enderror">
                 @error('mother_mobile') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-12 col-sm-4">
-                <label for="mother_email" class="form-label fw-semibold small icp-label">Mother's email <span class="text-muted fw-normal">(optional)</span></label>
+                <label for="mother_email" class="form-label fw-semibold small icp-label">Mother's email </label>
                 <input id="mother_email" name="mother_email" type="email"
                     value="{{ old('mother_email', $item?->mother_email) }}"
                     class="form-control icp-input @error('mother_email') is-invalid @enderror">
                 @error('mother_email') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
 
-            <div class="col-12 col-sm-4">
-                <label for="guardian_full_name" class="form-label fw-semibold small icp-label">Local guardian's full name <span class="text-muted fw-normal">(optional)</span></label>
+            <div class="col-12 col-sm-6 col-lg-3">
+                <label for="guardian_full_name" class="form-label fw-semibold small icp-label">Local guardian's full name </label>
                 <input id="guardian_full_name" name="guardian_full_name" type="text"
                     value="{{ old('guardian_full_name', $item?->guardian_full_name) }}"
                     class="form-control icp-input @error('guardian_full_name') is-invalid @enderror">
                 @error('guardian_full_name') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
-            <div class="col-12 col-sm-4">
-                <label for="guardian_contact" class="form-label fw-semibold small icp-label">Local guardian's contact <span class="text-muted fw-normal">(optional)</span></label>
+            <div class="col-12 col-sm-6 col-lg-3">
+                <label for="guardian_relationship" class="form-label fw-semibold small icp-label">Relationship to student </label>
+                <input id="guardian_relationship" name="guardian_relationship" type="text" placeholder="e.g. Uncle"
+                    value="{{ old('guardian_relationship', $item?->guardian_relationship) }}"
+                    class="form-control icp-input @error('guardian_relationship') is-invalid @enderror">
+                @error('guardian_relationship') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-12 col-sm-6 col-lg-3">
+                <label for="guardian_contact" class="form-label fw-semibold small icp-label">Local guardian's contact </label>
                 <input id="guardian_contact" name="guardian_contact" type="text"
                     value="{{ old('guardian_contact', $item?->guardian_contact) }}"
                     class="form-control icp-input @error('guardian_contact') is-invalid @enderror">
                 @error('guardian_contact') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
-            <div class="col-12 col-sm-4">
-                <label for="guardian_email" class="form-label fw-semibold small icp-label">Local guardian's email <span class="text-muted fw-normal">(optional)</span></label>
+            <div class="col-12 col-sm-6 col-lg-3">
+                <label for="guardian_email" class="form-label fw-semibold small icp-label">Local guardian's email </label>
                 <input id="guardian_email" name="guardian_email" type="email"
                     value="{{ old('guardian_email', $item?->guardian_email) }}"
                     class="form-control icp-input @error('guardian_email') is-invalid @enderror">
@@ -266,106 +425,191 @@
 </div>
 
 {{-- ── Academic / Education Information ── --}}
-<div class="icp-form-section form-step" data-step="4">
+<div class="icp-form-section form-step" data-step="5">
     <div class="icp-card-header">
         <p class="icp-card-title">Academic / Education Information</p>
-        <p class="icp-card-subtitle">The highest / primary qualification below, plus any additional qualifications on file.</p>
+        <p class="icp-card-subtitle">The highest qualification the student holds.</p>
     </div>
     <div class="icp-form-section-body">
-        <div class="row g-4 mb-4">
-            <div class="col-12 col-sm-4">
-                <label for="highest_qualification" class="form-label fw-semibold small icp-label">Highest qualification</label>
-                <input id="highest_qualification" name="highest_qualification" type="text" required placeholder="e.g. NEB"
-                    value="{{ old('highest_qualification', $item?->highest_qualification) }}"
-                    class="form-control icp-input @error('highest_qualification') is-invalid @enderror">
-                @error('highest_qualification') <div class="invalid-feedback">{{ $message }}</div> @enderror
+        @if($documentTypes->isEmpty())
+            <div class="icp-note d-flex gap-3 p-3 rounded-3 mb-3">
+                @svg('heroicon-m-exclamation-triangle', 'icp-icon-sm flex-shrink-0 mt-1')
+                <p class="mb-0 small">No educational boards have been set up yet. <a href="{{ route('admin.document-types.index') }}" target="_blank">Add one</a> before this can be saved.</p>
             </div>
-            <div class="col-12 col-sm-4">
-                <label for="awarding_body" class="form-label fw-semibold small icp-label">Awarding body</label>
-                <input id="awarding_body" name="awarding_body" type="text" required
-                    value="{{ old('awarding_body', $item?->awarding_body) }}"
-                    class="form-control icp-input @error('awarding_body') is-invalid @enderror">
-                @error('awarding_body') <div class="invalid-feedback">{{ $message }}</div> @enderror
-            </div>
-            <div class="col-12 col-sm-4">
-                <label for="qualification_description" class="form-label fw-semibold small icp-label">Qualification description <span class="text-muted fw-normal">(optional)</span></label>
-                <input id="qualification_description" name="qualification_description" type="text"
-                    value="{{ old('qualification_description', $item?->qualification_description) }}"
-                    class="form-control icp-input @error('qualification_description') is-invalid @enderror">
-                @error('qualification_description') <div class="invalid-feedback">{{ $message }}</div> @enderror
+        @endif
+
+        <p class="fw-semibold small mb-2">Highest Education</p>
+        <div class="qualification-row border rounded-3 p-3">
+            <div class="row g-3">
+                <div class="col-12 col-sm-6">
+                    <label class="form-label small icp-label">Educational Board</label>
+                    <select name="highest_qualification[document_type]" required class="form-select icp-input js-document-type-select">
+                        <option value="" disabled @selected(empty($highestQualification['document_type']))>Select&hellip;</option>
+                        @foreach($documentTypes as $documentType)
+                            <option value="{{ $documentType->name }}" @selected(($highestQualification['document_type'] ?? null) === $documentType->name)>{{ $documentType->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-12 col-sm-6">
+                    <label class="form-label small icp-label">Awarding Body</label>
+                    <select name="highest_qualification[institute_name]" required class="form-select icp-input js-creatable-select" data-group="institute" data-store-url="{{ route('admin.institutes.store') }}">
+                        <option value="" disabled @selected(empty($highestQualification['institute_name']))>Select&hellip;</option>
+                        @foreach($institutes as $institute)
+                            <option value="{{ $institute->name }}" @selected(($highestQualification['institute_name'] ?? null) === $institute->name)>{{ $institute->name }}</option>
+                        @endforeach
+                        <option value="__add_new__">+ Add new institute&hellip;</option>
+                    </select>
+                </div>
             </div>
         </div>
 
-        <p class="fw-semibold small mb-2">Additional qualifications</p>
-        <div id="qualifications-container" class="d-flex flex-column gap-3 mb-3">
+        <p class="fw-semibold small mb-2 mt-4">Qualification Description</p>
+        <div id="qualification-descriptions-container" class="d-flex flex-column gap-3 mb-3">
             @foreach($qualifications as $qualification)
+                @php
+                    $qualificationExistingDocuments = collect($qualification['existing_documents'] ?? [])->map(function ($document) {
+                        return is_array($document)
+                            ? ['file_path' => $document['file_path'] ?? null, 'original_filename' => $document['original_filename'] ?? basename($document['file_path'] ?? '')]
+                            : ['file_path' => $document, 'original_filename' => basename((string) $document)];
+                    })->filter(fn ($document) => $document['file_path']);
+                @endphp
                 <div class="qualification-row border rounded-3 p-3 position-relative">
                     <button type="button" class="btn-close js-remove-row position-absolute top-0 end-0 m-2" aria-label="Remove"></button>
-                    <input type="hidden" name="qualifications[{{ $loop->index }}][existing_document_path]" value="{{ $qualification->document_path }}">
+                    <div class="col-12 col-sm-4 mb-3">
+                        <label class="form-label small icp-label">Educational Board</label>
+                        <select name="qualifications[{{ $loop->index }}][document_type]" required class="form-select icp-input js-document-type-select">
+                            <option value="" disabled @selected(empty($qualification['document_type']))>Select&hellip;</option>
+                            @foreach($documentTypes as $documentType)
+                                <option value="{{ $documentType->name }}" @selected(($qualification['document_type'] ?? null) === $documentType->name)>{{ $documentType->name }}, {{ $documentType->format_hint }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-text small js-format-hint mb-2">{{ $documentTypeFormatHints[$qualification['document_type'] ?? null] ?? '' }}</div>
+                    <textarea name="qualifications[{{ $loop->index }}][qualification_description]" rows="2" placeholder="Describe the qualification&hellip;" class="form-control icp-input js-qualification-description mb-2">{{ $qualification['qualification_description'] ?? null }}</textarea>
+                    @if($qualificationExistingDocuments->isNotEmpty())
+                        <div class="d-flex flex-wrap gap-2 mb-2 js-existing-documents">
+                            @foreach($qualificationExistingDocuments as $document)
+                                <span class="icp-chip d-inline-flex align-items-center gap-1 px-2 py-1 border rounded-3 small">
+                                    <input type="hidden" name="qualifications[{{ $loop->parent->index }}][existing_documents][]" value="{{ $document['file_path'] }}">
+                                    <a href="{{ Storage::url($document['file_path']) }}" target="_blank">{{ $document['original_filename'] }}</a>
+                                    <button type="button" class="btn-close js-remove-existing-document" style="font-size:.6rem" aria-label="Remove"></button>
+                                </span>
+                            @endforeach
+                        </div>
+                    @endif
+                    <div class="form-text small text-muted mb-1">Attach images (optional, multiple allowed)</div>
+                    <input type="file" name="qualifications[{{ $loop->index }}][documents][]" accept="image/*" multiple class="form-control icp-input js-multi-file-input">
+                    <div class="d-flex flex-wrap gap-2 mt-2 js-new-documents-preview"></div>
+                </div>
+            @endforeach
+        </div>
+        <button type="button" id="add-qualification-description" class="btn icp-btn-muted d-inline-flex align-items-center gap-2 px-3 py-2">
+            @svg('heroicon-m-plus', 'icp-icon-sm')
+            <span>Add Qualification Description</span>
+        </button>
+
+        <template id="qualification-description-template">
+            <div class="qualification-row border rounded-3 p-3 position-relative">
+                <button type="button" class="btn-close js-remove-row position-absolute top-0 end-0 m-2" aria-label="Remove"></button>
+                <div class="col-12 col-sm-4 mb-3">
+                    <label class="form-label small icp-label">Educational Board</label>
+                    <select name="qualifications[__INDEX__][document_type]" required class="form-select icp-input js-document-type-select">
+                        <option value="" disabled selected>Select&hellip;</option>
+                        @foreach($documentTypes as $documentType)
+                            <option value="{{ $documentType->name }}">{{ $documentType->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-text small js-format-hint mb-2"></div>
+                <textarea name="qualifications[__INDEX__][qualification_description]" rows="2" placeholder="Describe the qualification&hellip;" class="form-control icp-input js-qualification-description mb-2"></textarea>
+                <div class="form-text small text-muted mb-1">Attach images (optional, multiple allowed)</div>
+                <input type="file" name="qualifications[__INDEX__][documents][]" accept="image/*" multiple class="form-control icp-input js-multi-file-input">
+                <div class="d-flex flex-wrap gap-2 mt-2 js-new-documents-preview"></div>
+            </div>
+        </template>
+
+        <p class="fw-semibold small mb-2 mt-4">Academic Qualifications</p>
+        <div id="academic-records-container" class="d-flex flex-column gap-3 mb-3">
+            @foreach($academicRecords as $record)
+                <div class="qualification-row border rounded-3 p-3 position-relative">
+                    <button type="button" class="btn-close js-remove-row position-absolute top-0 end-0 m-2" aria-label="Remove"></button>
                     <div class="row g-3">
                         <div class="col-12 col-sm-6 col-lg-3">
-                            <label class="form-label small icp-label">Document type</label>
-                            <input type="text" name="qualifications[{{ $loop->index }}][document_type]" value="{{ $qualification->document_type }}" required class="form-control icp-input">
+                            <label class="form-label small icp-label">Document Type</label>
+                            <input type="text" name="academic_records[{{ $loop->index }}][document_type]" value="Academic" readonly class="form-control icp-input">
                         </div>
                         <div class="col-6 col-sm-3 col-lg-2">
                             <label class="form-label small icp-label">Awarded year</label>
-                            <input type="number" name="qualifications[{{ $loop->index }}][awarded_year]" value="{{ $qualification->awarded_year }}" class="form-control icp-input">
+                            <input type="number" name="academic_records[{{ $loop->index }}][awarded_year]" value="{{ $record['awarded_year'] ?? null }}" class="form-control icp-input">
                         </div>
                         <div class="col-12 col-sm-6 col-lg-3">
-                            <label class="form-label small icp-label">Subject</label>
-                            <input type="text" name="qualifications[{{ $loop->index }}][subject]" value="{{ $qualification->subject }}" required class="form-control icp-input">
+                            <label class="form-label small icp-label">Faculty</label>
+                            <select name="academic_records[{{ $loop->index }}][faculty]" required class="form-select icp-input js-creatable-select" data-group="faculty" data-store-url="{{ route('admin.faculties.store') }}">
+                                <option value="" disabled @selected(empty($record['faculty']))>Select&hellip;</option>
+                                @foreach($faculties as $faculty)
+                                    <option value="{{ $faculty->name }}" @selected(($record['faculty'] ?? null) === $faculty->name)>{{ $faculty->name }}</option>
+                                @endforeach
+                                <option value="__add_new__">+ Add new faculty&hellip;</option>
+                            </select>
                         </div>
                         <div class="col-12 col-sm-6 col-lg-4">
-                            <label class="form-label small icp-label">Institute name</label>
-                            <input type="text" name="qualifications[{{ $loop->index }}][institute_name]" value="{{ $qualification->institute_name }}" required class="form-control icp-input">
+                            <label class="form-label small icp-label">Institute Name</label>
+                            <select name="academic_records[{{ $loop->index }}][institute_name]" required class="form-select icp-input js-creatable-select" data-group="institute" data-store-url="{{ route('admin.institutes.store') }}">
+                                <option value="" disabled @selected(empty($record['institute_name']))>Select&hellip;</option>
+                                @foreach($institutes as $institute)
+                                    <option value="{{ $institute->name }}" @selected(($record['institute_name'] ?? null) === $institute->name)>{{ $institute->name }}</option>
+                                @endforeach
+                                <option value="__add_new__">+ Add new institute&hellip;</option>
+                            </select>
                         </div>
                         <div class="col-6 col-sm-3 col-lg-2">
                             <label class="form-label small icp-label">Score</label>
-                            <input type="text" name="qualifications[{{ $loop->index }}][score]" value="{{ $qualification->score }}" class="form-control icp-input">
-                        </div>
-                        <div class="col-12 col-lg-4">
-                            <label class="form-label small icp-label">Document <span class="text-muted fw-normal">(optional)</span></label>
-                            <input type="file" name="qualifications[{{ $loop->index }}][document]" class="form-control icp-input">
-                            @if($qualification->document_path)
-                                <div class="form-text small">Current file on record &mdash; upload a new one to replace it.</div>
-                            @endif
+                            <input type="text" name="academic_records[{{ $loop->index }}][score]" value="{{ $record['score'] ?? null }}" placeholder="e.g. GPA-3.35" class="form-control icp-input">
                         </div>
                     </div>
                 </div>
             @endforeach
         </div>
-        <button type="button" id="add-qualification" class="btn icp-btn-muted d-inline-flex align-items-center gap-2 px-3 py-2">
+        <button type="button" id="add-academic-record" class="btn icp-btn-muted d-inline-flex align-items-center gap-2 px-3 py-2">
             @svg('heroicon-m-plus', 'icp-icon-sm')
-            <span>Add Qualification</span>
+            <span>Add Academic Qualification</span>
         </button>
 
-        <template id="qualification-row-template">
+        <template id="academic-record-template">
             <div class="qualification-row border rounded-3 p-3 position-relative">
                 <button type="button" class="btn-close js-remove-row position-absolute top-0 end-0 m-2" aria-label="Remove"></button>
                 <div class="row g-3">
                     <div class="col-12 col-sm-6 col-lg-3">
-                        <label class="form-label small icp-label">Document type</label>
-                        <input type="text" name="qualifications[__INDEX__][document_type]" required class="form-control icp-input">
+                        <label class="form-label small icp-label">Document Type</label>
+                        <input type="text" name="academic_records[__INDEX__][document_type]" value="Academic" readonly class="form-control icp-input">
                     </div>
                     <div class="col-6 col-sm-3 col-lg-2">
                         <label class="form-label small icp-label">Awarded year</label>
-                        <input type="number" name="qualifications[__INDEX__][awarded_year]" class="form-control icp-input">
+                        <input type="number" name="academic_records[__INDEX__][awarded_year]" class="form-control icp-input">
                     </div>
                     <div class="col-12 col-sm-6 col-lg-3">
-                        <label class="form-label small icp-label">Subject</label>
-                        <input type="text" name="qualifications[__INDEX__][subject]" required class="form-control icp-input">
+                        <label class="form-label small icp-label">Faculty</label>
+                        <select name="academic_records[__INDEX__][faculty]" required class="form-select icp-input js-creatable-select" data-group="faculty" data-store-url="{{ route('admin.faculties.store') }}">
+                            <option value="" disabled selected>Select&hellip;</option>
+                            @foreach($faculties as $faculty)
+                                <option value="{{ $faculty->name }}">{{ $faculty->name }}</option>
+                            @endforeach
+                            <option value="__add_new__">+ Add new faculty&hellip;</option>
+                        </select>
                     </div>
                     <div class="col-12 col-sm-6 col-lg-4">
-                        <label class="form-label small icp-label">Institute name</label>
-                        <input type="text" name="qualifications[__INDEX__][institute_name]" required class="form-control icp-input">
+                        <label class="form-label small icp-label">Institute Name</label>
+                        <select name="academic_records[__INDEX__][institute_name]" required class="form-select icp-input js-creatable-select" data-group="institute" data-store-url="{{ route('admin.institutes.store') }}">
+                            <option value="" disabled selected>Select&hellip;</option>
+                            @foreach($institutes as $institute)
+                                <option value="{{ $institute->name }}">{{ $institute->name }}</option>
+                            @endforeach
+                            <option value="__add_new__">+ Add new institute&hellip;</option>
+                        </select>
                     </div>
                     <div class="col-6 col-sm-3 col-lg-2">
                         <label class="form-label small icp-label">Score</label>
-                        <input type="text" name="qualifications[__INDEX__][score]" class="form-control icp-input">
-                    </div>
-                    <div class="col-12 col-lg-4">
-                        <label class="form-label small icp-label">Document <span class="text-muted fw-normal">(optional)</span></label>
-                        <input type="file" name="qualifications[__INDEX__][document]" class="form-control icp-input">
+                        <input type="text" name="academic_records[__INDEX__][score]" placeholder="e.g. GPA-3.35" class="form-control icp-input">
                     </div>
                 </div>
             </div>
@@ -373,80 +617,6 @@
     </div>
 </div>
 
-{{-- ── Course & Intake Information ── --}}
-<div class="icp-form-section form-step" data-step="5">
-    <div class="icp-card-header">
-        <p class="icp-card-title">Course &amp; Intake Information</p>
-        @if($item)
-            <p class="icp-card-subtitle">Student ID <strong>{{ $item->admission_id }}</strong> &middot; Group <strong>{{ $item->group }}</strong> (assigned automatically, not editable)</p>
-        @else
-            <p class="icp-card-subtitle">The Student ID and class group are assigned automatically once this form is submitted.</p>
-        @endif
-    </div>
-    <div class="icp-form-section-body">
-        <div class="row g-4">
-            <div class="col-12 col-sm-6">
-                <label for="course_id" class="form-label fw-semibold small icp-label">Course</label>
-                <select id="course_id" name="course_id" required class="form-select icp-input @error('course_id') is-invalid @enderror">
-                    <option value="" disabled @selected(! old('course_id', $item?->course_id))>Select a course&hellip;</option>
-                    @foreach($courses as $course)
-                        <option value="{{ $course->id }}" @selected(old('course_id', $item?->course_id) === $course->id)>{{ $course->title }}</option>
-                    @endforeach
-                </select>
-                @error('course_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-            </div>
-            <div class="col-12 col-sm-6">
-                <label for="admission_year_id" class="form-label fw-semibold small icp-label">Intake (Admission Year)</label>
-                <select id="admission_year_id" name="admission_year_id" required class="form-select icp-input @error('admission_year_id') is-invalid @enderror">
-                    <option value="" disabled @selected(! old('admission_year_id', $item?->admission_year_id))>Select an intake&hellip;</option>
-                    @foreach($admissionYears as $admissionYear)
-                        <option value="{{ $admissionYear->id }}" @selected(old('admission_year_id', $item?->admission_year_id) === $admissionYear->id)>{{ $admissionYear->title }}</option>
-                    @endforeach
-                </select>
-                @error('admission_year_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-            </div>
-
-            <div class="col-12 col-sm-4">
-                <label for="level" class="form-label fw-semibold small icp-label">Level</label>
-                <input id="level" name="level" type="text" required
-                    value="{{ old('level', $item?->level) }}"
-                    class="form-control icp-input @error('level') is-invalid @enderror">
-                @error('level') <div class="invalid-feedback">{{ $message }}</div> @enderror
-            </div>
-            <div class="col-12 col-sm-4">
-                <label for="entry_type" class="form-label fw-semibold small icp-label">Entry type</label>
-                <input id="entry_type" name="entry_type" type="text" required placeholder="e.g. Standard"
-                    value="{{ old('entry_type', $item?->entry_type) }}"
-                    class="form-control icp-input @error('entry_type') is-invalid @enderror">
-                @error('entry_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
-            </div>
-            <div class="col-12 col-sm-4">
-                <label for="semester" class="form-label fw-semibold small icp-label">Semester</label>
-                <select id="semester" name="semester" required class="form-select icp-input @error('semester') is-invalid @enderror">
-                    @foreach(['Spring', 'Summer', 'Autumn'] as $option)
-                        <option value="{{ $option }}" @selected(old('semester', $item?->semester) === $option)>{{ $option }}</option>
-                    @endforeach
-                </select>
-                @error('semester') <div class="invalid-feedback">{{ $message }}</div> @enderror
-            </div>
-
-            <div class="col-12 col-sm-6">
-                <label for="biometric_id" class="form-label fw-semibold small icp-label">Biometric ID <span class="text-muted fw-normal">(optional, filled in later)</span></label>
-                <input id="biometric_id" name="biometric_id" type="text"
-                    value="{{ old('biometric_id', $item?->biometric_id) }}"
-                    class="form-control icp-input @error('biometric_id') is-invalid @enderror">
-                @error('biometric_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-            </div>
-            <div class="col-12 col-sm-6">
-                <label for="university_registration_no" class="form-label fw-semibold small icp-label">University registration no. (LMU) <span class="text-muted fw-normal">(optional, filled in later)</span></label>
-                <input id="university_registration_no" name="university_registration_no" type="text"
-                    value="{{ old('university_registration_no', $item?->university_registration_no) }}"
-                    class="form-control icp-input @error('university_registration_no') is-invalid @enderror">
-                @error('university_registration_no') <div class="invalid-feedback">{{ $message }}</div> @enderror
-            </div>
-        </div>
-    </div>
-</div>
 
 {{-- ── Medical Background ── --}}
 <div class="icp-form-section form-step" data-step="6">
@@ -479,7 +649,7 @@
 <div class="icp-form-section form-step" data-step="7">
     <div class="icp-card-header">
         <p class="icp-card-title">Documents</p>
-        <p class="icp-card-subtitle">Attach scanned documents such as citizenship/passport and academic transcripts.</p>
+        <p class="icp-card-subtitle">Attach scanned documents such as citizenship/passport. Academic transcripts are attached against each qualification in the Academic step.</p>
     </div>
     <div class="icp-form-section-body">
         @if($item && $item->documents->isNotEmpty())
@@ -504,13 +674,28 @@
         @endif
 
         <p class="fw-semibold small mb-2">Add documents</p>
-        <div id="documents-container" class="d-flex flex-column gap-3 mb-3"></div>
+        <div id="documents-container" class="d-flex flex-column gap-3 mb-3">
+            @foreach($oldDocumentRows as $documentRow)
+                <div class="document-row border rounded-3 p-3 position-relative">
+                    <button type="button" class="btn-close js-remove-row position-absolute top-0 end-0 m-2" aria-label="Remove"></button>
+                    <div class="row g-3">
+                        <div class="col-12 col-sm-4">
+                            <label class="form-label small icp-label">Title</label>
+                            <input type="text" name="documents[{{ $loop->index }}][title]" value="{{ $documentRow['title'] ?? '' }}" required class="form-control icp-input js-document-title">
+                        </div>
+                        <div class="col-12 col-sm-8">
+                            <label class="form-label small icp-label">Files <span class="text-muted fw-normal">(optional, multiple allowed)</span></label>
+                            <input type="file" name="documents[{{ $loop->index }}][files][]" multiple class="form-control icp-input js-multi-file-input">
+                            <div class="d-flex flex-wrap gap-2 mt-2 js-new-documents-preview"></div>
+                            <div class="form-text small">Files aren&rsquo;t kept after a form error &mdash; please re-select them.</div>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
         <div class="d-flex flex-wrap gap-2 mb-1">
             <button type="button" class="btn icp-btn-muted d-inline-flex align-items-center gap-2 px-3 py-2 js-add-document" data-title="Citizenship">
                 @svg('heroicon-m-plus', 'icp-icon-sm')<span>Citizenship</span>
-            </button>
-            <button type="button" class="btn icp-btn-muted d-inline-flex align-items-center gap-2 px-3 py-2 js-add-document" data-title="Academic Documents">
-                @svg('heroicon-m-plus', 'icp-icon-sm')<span>Academic Documents</span>
             </button>
             <button type="button" class="btn icp-btn-muted d-inline-flex align-items-center gap-2 px-3 py-2 js-add-document" data-title="Other Documents">
                 @svg('heroicon-m-plus', 'icp-icon-sm')<span>Other Documents</span>
@@ -526,8 +711,9 @@
                         <input type="text" name="documents[__INDEX__][title]" required class="form-control icp-input js-document-title">
                     </div>
                     <div class="col-12 col-sm-8">
-                        <label class="form-label small icp-label">File</label>
-                        <input type="file" name="documents[__INDEX__][file]" required class="form-control icp-input">
+                        <label class="form-label small icp-label">Files <span class="text-muted fw-normal">(optional, multiple allowed)</span></label>
+                        <input type="file" name="documents[__INDEX__][files][]" multiple class="form-control icp-input js-multi-file-input">
+                        <div class="d-flex flex-wrap gap-2 mt-2 js-new-documents-preview"></div>
                     </div>
                 </div>
             </div>
@@ -584,7 +770,13 @@
     </button>
 </div>
 
+@push('styles')
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/css/select2.min.css">
+@endpush
+
 @push('scripts')
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.9/jquery.inputmask.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
     <script src="{{ asset('js/signotec/STPadServerLib.js') }}"></script>
     <script>
         (function ($) {
@@ -605,8 +797,20 @@
                         var titleInput = fragment.querySelector('.js-document-title');
                         if (titleInput) { titleInput.value = presetTitle; }
                     }
+
+                    // Captured before appendChild empties the fragment; the
+                    // element references stay valid once moved into the DOM.
+                    var newSelects = Array.prototype.slice.call(
+                        fragment.querySelectorAll('.js-document-type-select, .js-creatable-select')
+                    );
+
                     container.appendChild(fragment);
                     nextIndex++;
+
+                    newSelects.forEach(function (select) {
+                        if (window.icpPopulateCreatableOptions) { window.icpPopulateCreatableOptions(select); }
+                        if (window.icpInitSelect2) { window.icpInitSelect2(select); }
+                    });
                 }
 
                 $(document).on('click', addButtonSelector, function () {
@@ -623,8 +827,289 @@
                 if (onAdd) { onAdd(addRow); }
             }
 
-            makeRepeater('qualifications-container', 'qualification-row-template', '#add-qualification', {{ $qualifications->count() }});
-            makeRepeater('documents-container', 'document-row-template', '.js-add-document', 0);
+            makeRepeater('documents-container', 'document-row-template', '.js-add-document', {{ $oldDocumentRows->count() }});
+            makeRepeater('qualification-descriptions-container', 'qualification-description-template', '#add-qualification-description', {{ $qualifications->count() }});
+            makeRepeater('academic-records-container', 'academic-record-template', '#add-academic-record', {{ $academicRecords->count() }});
+
+            // ── Highest qualification: drop a previously-uploaded document ─────
+            document.addEventListener('click', function (e) {
+                var button = e.target.closest('.js-remove-existing-document');
+                if (button) {
+                    button.closest('.icp-chip').remove();
+                }
+            });
+
+            // ── Highest qualification: show the admin-set description format
+            //    hint for the chosen Educational Board ──────────────────────────
+            //    Delegated via jQuery (not document.addEventListener) because
+            //    Select2 reports a selection by triggering a jQuery-only
+            //    "change" event on the underlying <select> — it never fires
+            //    a native DOM change event, so a plain addEventListener
+            //    listener would never see it. ─────────────────────────────
+            (function () {
+                var formatHints = @json($documentTypeFormatHints);
+
+                $(document).on('change', '.js-document-type-select', function () {
+                    var hint = this.closest('.qualification-row').querySelector('.js-format-hint');
+                    if (hint) {
+                        hint.textContent = formatHints[this.value] || '';
+                    }
+                });
+            })();
+
+            // ── Searchable / creatable dropdowns (Educational Board, Faculty,
+            //    Institute), via Select2. `.js-document-type-select` is
+            //    search-only; `.js-creatable-select` (data-group +
+            //    data-store-url) also offers two ways to add a new one: type
+            //    a value that doesn't match anything (Select2's own "create"
+            //    suggestion), or pick the always-visible "+ Add new…" entry
+            //    at the bottom of the list. Either way the result is shared
+            //    with every other select of the same group — e.g. adding an
+            //    institute from "Awarding Body" also offers it under
+            //    "Institute Name" and vice versa — and new rows added later
+            //    (cloned from a <template>) start with the same up-to-date
+            //    list too. ────────────────────────────────────────────────
+            (function () {
+                var csrf = $('meta[name="csrf-token"]').attr('content');
+                var ADD_NEW = '__add_new__';
+
+                // Kept in sync as new faculties/institutes are created, so a
+                // qualification row added after the fact still offers them.
+                var creatableOptions = {
+                    faculty: @json($faculties->pluck('name')),
+                    institute: @json($institutes->pluck('name'))
+                };
+
+                // Every creatable select's last option is its "+ Add new…"
+                // entry; new real options are inserted just before it so it
+                // always stays at the bottom of the list.
+                function insertOption(select, name) {
+                    if (select.querySelector('option[value="' + CSS.escape(name) + '"]')) { return; }
+                    select.insertBefore(new Option(name, name, false, false), select.lastElementChild);
+                }
+
+                function addOptionToGroup(group, name) {
+                    if (creatableOptions[group].indexOf(name) === -1) {
+                        creatableOptions[group].push(name);
+                    }
+
+                    document.querySelectorAll('.js-creatable-select[data-group="' + group + '"]').forEach(function (select) {
+                        insertOption(select, name);
+                        $(select).trigger('change.select2');
+                    });
+                }
+
+                function persistNewOption(select, name) {
+                    $.ajax({
+                        url: select.dataset.storeUrl,
+                        method: 'POST',
+                        dataType: 'json',
+                        data: { _token: csrf, name: name }
+                    }).done(function (response) {
+                        addOptionToGroup(select.dataset.group, response.data.name);
+                        select.value = response.data.name;
+                        $(select).trigger('change.select2');
+                    }).fail(function (xhr) {
+                        var message = (xhr.responseJSON && xhr.responseJSON.message) || 'Could not save this.';
+                        window.alert(message);
+                    });
+                }
+
+                window.icpPopulateCreatableOptions = function (select) {
+                    var group = select.dataset.group;
+                    if (!group || !creatableOptions[group]) { return; }
+
+                    creatableOptions[group].forEach(function (name) {
+                        insertOption(select, name);
+                    });
+                };
+
+                window.icpInitSelect2 = function (select) {
+                    var $select = $(select);
+                    if ($select.data('select2')) { return; }
+
+                    var isCreatable = select.classList.contains('js-creatable-select');
+                    var placeholder = ($select.find('option[value=""]').text() || 'Select…').replace('…', '');
+
+                    $select.select2({
+                        width: '100%',
+                        tags: isCreatable,
+                        placeholder: placeholder,
+                        allowClear: false,
+                        createTag: function (params) {
+                            var term = $.trim(params.term);
+                            if (!term || term === ADD_NEW) { return null; }
+                            return { id: term, text: term, newTag: true };
+                        }
+                    });
+
+                    if (isCreatable) {
+                        $select.on('select2:select', function (e) {
+                            var data = e.params.data;
+
+                            if (data.id === ADD_NEW) {
+                                var label = select.dataset.group === 'institute' ? 'institute' : 'faculty';
+                                var name = window.prompt('New ' + label + ' name:');
+                                name = name ? $.trim(name) : '';
+
+                                if (name) {
+                                    persistNewOption(select, name);
+                                } else {
+                                    select.value = '';
+                                    $(select).trigger('change.select2');
+                                }
+                                return;
+                            }
+
+                            if (data.newTag) {
+                                persistNewOption(select, data.id);
+                            }
+                        });
+                    }
+                };
+
+                document.querySelectorAll('.js-document-type-select, .js-creatable-select').forEach(window.icpInitSelect2);
+            })();
+
+            // ── Multi-file inputs: preview newly-picked files, with the option
+            //    to drop one before it's ever uploaded ──────────────────────────
+            (function () {
+                function renderPreviews(input) {
+                    var container = input.nextElementSibling;
+                    if (!container || !container.classList.contains('js-new-documents-preview')) {
+                        return;
+                    }
+
+                    container.innerHTML = '';
+
+                    Array.prototype.forEach.call(input.files, function (file, index) {
+                        var chip = document.createElement('span');
+                        chip.className = 'icp-chip d-inline-flex align-items-center gap-2 px-2 py-1 border rounded-3 small';
+
+                        var img = document.createElement('img');
+                        img.alt = file.name;
+                        img.style.cssText = 'width:28px;height:28px;object-fit:cover;border-radius:4px;flex-shrink:0';
+                        chip.appendChild(img);
+
+                        var reader = new FileReader();
+                        reader.onload = function (e) { img.src = e.target.result; };
+                        reader.readAsDataURL(file);
+
+                        var name = document.createElement('span');
+                        name.textContent = file.name;
+                        name.style.cssText = 'max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                        chip.appendChild(name);
+
+                        var removeButton = document.createElement('button');
+                        removeButton.type = 'button';
+                        removeButton.className = 'btn-close';
+                        removeButton.style.fontSize = '.6rem';
+                        removeButton.setAttribute('aria-label', 'Remove');
+                        removeButton.addEventListener('click', function () {
+                            var dataTransfer = new DataTransfer();
+                            Array.prototype.forEach.call(input.files, function (keptFile, keptIndex) {
+                                if (keptIndex !== index) { dataTransfer.items.add(keptFile); }
+                            });
+                            input.files = dataTransfer.files;
+                            renderPreviews(input);
+                        });
+                        chip.appendChild(removeButton);
+
+                        container.appendChild(chip);
+                    });
+                }
+
+                document.addEventListener('change', function (e) {
+                    var input = e.target.closest('.js-multi-file-input');
+                    if (input) {
+                        renderPreviews(input);
+                    }
+                });
+            })();
+
+            // ── Photo picker: live preview in the same circular crop as the PDF ──
+            (function () {
+                var photoInput = document.getElementById('photo');
+                var preview = document.getElementById('photo-preview');
+                var placeholder = document.getElementById('photo-placeholder');
+
+                if (!photoInput || !preview) { return; }
+
+                photoInput.addEventListener('change', function () {
+                    var file = photoInput.files && photoInput.files[0];
+                    if (!file) { return; }
+
+                    var reader = new FileReader();
+                    reader.onload = function (e) {
+                        preview.src = e.target.result;
+                        preview.style.display = 'block';
+                        if (placeholder) { placeholder.style.display = 'none'; }
+                    };
+                    reader.readAsDataURL(file);
+                });
+            })();
+
+            // ── Citizenship / passport number input masks ─────────────────────
+            (function () {
+                if (!$.fn.inputmask) { return; }
+
+                $('#citizenship_number').inputmask('99-99-99-99999', { placeholder: '_', clearIncomplete: false });
+                $('#passport_number').inputmask({
+                    mask: 'aa9999999',
+                    placeholder: '_',
+                    casing: 'upper',
+                    clearIncomplete: false
+                });
+
+                $('#dob_bs, #citizenship_issued_date, #passport_issued_date').inputmask('9999-99-99', {
+                    placeholder: 'yyyy-mm-dd',
+                    clearIncomplete: false
+                });
+            })();
+
+            // ── Course & Intake: keep Level in sync with the selected course ──
+            (function () {
+                var courseSelect = document.getElementById('course_id');
+                var levelSelect = document.getElementById('level');
+
+                function populateLevels(preserveValue) {
+                    var selectedOption = courseSelect.options[courseSelect.selectedIndex];
+                    var levels = [];
+                    try {
+                        levels = selectedOption && selectedOption.dataset.levels ? JSON.parse(selectedOption.dataset.levels) : [];
+                    } catch (e) {
+                        levels = [];
+                    }
+
+                    var currentValue = preserveValue ? levelSelect.value : null;
+
+                    levelSelect.innerHTML = '';
+
+                    var placeholder = document.createElement('option');
+                    placeholder.value = '';
+                    placeholder.disabled = true;
+                    placeholder.textContent = levels.length ? 'Select a level…' : 'Select a course first…';
+                    levelSelect.appendChild(placeholder);
+
+                    var matched = false;
+                    levels.forEach(function (level) {
+                        var option = document.createElement('option');
+                        option.value = level;
+                        option.textContent = level;
+                        if (currentValue && currentValue === level) {
+                            option.selected = true;
+                            matched = true;
+                        }
+                        levelSelect.appendChild(option);
+                    });
+
+                    placeholder.selected = ! matched;
+                }
+
+                courseSelect.addEventListener('change', function () {
+                    populateLevels(false);
+                });
+            })();
 
             // ── Digital signature (signotec pad, Default mode) ────────────────
             (function () {
@@ -760,7 +1245,14 @@
                 var inputs = stepEl.querySelectorAll('input, select, textarea');
                 for (var i = 0; i < inputs.length; i++) {
                     if (!inputs[i].checkValidity()) {
-                        inputs[i].reportValidity();
+                        // Select2 hides the real <select>, so a native
+                        // validation bubble has nothing to anchor to — open
+                        // the dropdown instead so the gap is obvious.
+                        if (inputs[i].classList.contains('select2-hidden-accessible')) {
+                            $(inputs[i]).select2('open');
+                        } else {
+                            inputs[i].reportValidity();
+                        }
                         return false;
                     }
                 }
@@ -789,8 +1281,11 @@
             }
 
             if (hasErrors || steps.length === 0) {
-                document.getElementById('form-stepper').style.display = 'none';
-                document.getElementById('form-stepper-nav').style.display = 'none';
+                // These two elements carry Bootstrap's `.d-flex` (display:flex
+                // !important), which beats a plain inline style — toggle the
+                // `.d-none` utility class instead so it actually hides.
+                document.getElementById('form-stepper').classList.add('d-none');
+                document.getElementById('form-stepper-nav').classList.add('d-none');
             } else {
                 nextButton.addEventListener('click', function () {
                     if (validateStep(current) && current < steps.length) {

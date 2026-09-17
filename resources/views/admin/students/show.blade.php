@@ -62,45 +62,45 @@
         <div class="icp-card-header"><p class="icp-card-title">Parent / Guardian Information</p></div>
         <dl class="row g-0 mb-0 icp-detail-list p-3">
             <dt class="col-12 col-sm-4">Father</dt>
-            <dd class="col-12 col-sm-8">{{ $item->father_full_name }} &middot; {{ $item->father_mobile }}</dd>
+            <dd class="col-12 col-sm-8">{{ $item->father_full_name ? $item->father_full_name.' · '.$item->father_mobile : '—' }}</dd>
             <dt class="col-12 col-sm-4">Mother</dt>
-            <dd class="col-12 col-sm-8">{{ $item->mother_full_name }} &middot; {{ $item->mother_mobile }}</dd>
+            <dd class="col-12 col-sm-8">{{ $item->mother_full_name ? $item->mother_full_name.' · '.$item->mother_mobile : '—' }}</dd>
             <dt class="col-12 col-sm-4">Local guardian</dt>
-            <dd class="col-12 col-sm-8">{{ $item->guardian_full_name ? $item->guardian_full_name.' · '.$item->guardian_contact : '—' }}</dd>
+            <dd class="col-12 col-sm-8">{{ $item->guardian_full_name ? $item->guardian_full_name.($item->guardian_relationship ? ' ('.$item->guardian_relationship.')' : '').' · '.$item->guardian_contact : '—' }}</dd>
         </dl>
     </div>
 
     {{-- ── Academic / Education Information ── --}}
     <div class="icp-card mb-4">
         <div class="icp-card-header"><p class="icp-card-title">Academic / Education Information</p></div>
-        <dl class="row g-0 mb-0 icp-detail-list p-3">
-            <dt class="col-12 col-sm-4">Highest qualification</dt>
-            <dd class="col-12 col-sm-8">{{ $item->highest_qualification }}</dd>
-            <dt class="col-12 col-sm-4">Awarding body</dt>
-            <dd class="col-12 col-sm-8">{{ $item->awarding_body }}</dd>
-            <dt class="col-12 col-sm-4">Description</dt>
-            <dd class="col-12 col-sm-8">{{ $item->qualification_description ?: '—' }}</dd>
-        </dl>
-        @if($item->qualifications->isNotEmpty())
-            <div class="table-responsive p-3 pt-0">
+        @if($item->qualifications->isEmpty())
+            <p class="small text-muted p-3 mb-0">No qualifications on file.</p>
+        @else
+            <div class="table-responsive p-3">
                 <table class="table icp-table mb-0">
                     <thead>
                         <tr>
-                            <th>Document Type</th><th>Year</th><th>Subject</th><th>Institute</th><th>Score</th><th></th>
+                            <th>Educational Board</th><th>Year</th><th>Faculty</th><th>Institute</th><th>Score</th><th>Description</th><th>Documents</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($item->qualifications as $qualification)
+                        @foreach($item->qualifications->sortByDesc('is_highest') as $qualification)
                             <tr>
-                                <td>{{ $qualification->document_type }}</td>
-                                <td>{{ $qualification->awarded_year }}</td>
-                                <td>{{ $qualification->subject }}</td>
-                                <td>{{ $qualification->institute_name }}</td>
-                                <td>{{ $qualification->score }}</td>
                                 <td>
-                                    @if($qualification->document_path)
-                                        <a href="{{ Storage::url($qualification->document_path) }}" target="_blank">@svg('heroicon-m-paper-clip', 'icp-icon-sm')</a>
+                                    {{ $qualification->document_type }}
+                                    @if($qualification->is_highest)
+                                        <span class="badge bg-primary ms-1">Highest</span>
                                     @endif
+                                </td>
+                                <td>{{ $qualification->awarded_year }}</td>
+                                <td>{{ $qualification->faculty }}</td>
+                                <td>{{ $qualification->institute_name }}</td>
+                                <td>{{ $qualification->score }}{{ $qualification->score_type ? ' ('.$qualification->score_type.')' : '' }}</td>
+                                <td>{{ $qualification->qualification_description ?: '—' }}</td>
+                                <td>
+                                    @foreach($qualification->documents as $document)
+                                        <a href="{{ Storage::url($document->file_path) }}" target="_blank" class="me-1" title="{{ $document->original_filename }}">@svg('heroicon-m-paper-clip', 'icp-icon-sm')</a>
+                                    @endforeach
                                 </td>
                             </tr>
                         @endforeach

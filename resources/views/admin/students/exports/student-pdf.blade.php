@@ -154,16 +154,20 @@
         <div class="section-body">
             <table class="fields">
                 <tr>
-                    <td><div class="label">Father's Full Name</div><div class="value">{{ $student->father_full_name }}</div></td>
-                    <td><div class="label">Father's Mobile Number</div><div class="value">{{ $student->father_mobile }}</div></td>
+                    <td><div class="label">Father's Full Name</div><div class="value">{{ $student->father_full_name ?: '--' }}</div></td>
+                    <td><div class="label">Father's Mobile Number</div><div class="value">{{ $student->father_mobile ?: '--' }}</div></td>
                 </tr>
                 <tr>
-                    <td><div class="label">Mother's Full Name</div><div class="value">{{ $student->mother_full_name }}</div></td>
-                    <td><div class="label">Mother's Mobile Number</div><div class="value">{{ $student->mother_mobile }}</div></td>
+                    <td><div class="label">Mother's Full Name</div><div class="value">{{ $student->mother_full_name ?: '--' }}</div></td>
+                    <td><div class="label">Mother's Mobile Number</div><div class="value">{{ $student->mother_mobile ?: '--' }}</div></td>
                 </tr>
                 <tr>
                     <td><div class="label">Local Guardian's Full Name</div><div class="value">{{ $student->guardian_full_name ?: '--' }}</div></td>
                     <td><div class="label">Local Guardian's Contact Number</div><div class="value">{{ $student->guardian_contact ?: '--' }}</div></td>
+                </tr>
+                <tr>
+                    <td><div class="label">Local Guardian's Relationship to Student</div><div class="value">{{ $student->guardian_relationship ?: '--' }}</div></td>
+                    <td></td>
                 </tr>
             </table>
         </div>
@@ -172,37 +176,66 @@
     <div class="section">
         <div class="section-title">Academic Details</div>
         <div class="section-body">
-            <table class="fields">
-                <tr>
-                    <td><div class="label">Highest Qualification</div><div class="value">{{ $student->highest_qualification }}</div></td>
-                    <td><div class="label">Awarding Body</div><div class="value">{{ $student->awarding_body }}</div></td>
-                </tr>
-                @if($student->qualification_description)
-                <tr>
-                    <td colspan="2"><div class="label">Qualification Description</div><div class="value">{{ $student->qualification_description }}</div></td>
-                </tr>
-                @endif
-            </table>
-
-            @if($student->qualifications->isNotEmpty())
+            @if($student->qualifications->isEmpty())
+                <p>No qualifications on file.</p>
+            @else
                 <table class="qualifications">
                     <thead>
                         <tr>
-                            <th>Document Type</th><th>Awarded Year</th><th>Subject</th><th>Institute Name</th><th>%/GPA/Score</th>
+                            <th>Educational Board</th><th>Awarded Year</th><th>Faculty</th><th>Institute Name</th><th>Score</th><th>Description</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($student->qualifications as $qualification)
+                        @foreach($student->qualifications->sortByDesc('is_highest') as $qualification)
                             <tr>
-                                <td>{{ $qualification->document_type }}</td>
+                                <td>{{ $qualification->document_type }}{{ $qualification->is_highest ? ' (Highest)' : '' }}</td>
                                 <td>{{ $qualification->awarded_year }}</td>
-                                <td>{{ $qualification->subject }}</td>
+                                <td>{{ $qualification->faculty }}</td>
                                 <td>{{ $qualification->institute_name }}</td>
-                                <td>{{ $qualification->score }}</td>
+                                <td>{{ $qualification->score }}{{ $qualification->score_type ? ' ('.$qualification->score_type.')' : '' }}</td>
+                                <td>{{ $qualification->qualification_description }}</td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
+            @endif
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Documents</div>
+        <div class="section-body">
+            @php
+                $academicDocuments = $student->qualifications->flatMap(fn ($qualification) => $qualification->documents->map(
+                    fn ($document) => ['label' => $qualification->document_type.' — '.$qualification->faculty, 'document' => $document]
+                ));
+                $otherDocuments = $student->documents;
+            @endphp
+
+            @if($academicDocuments->isEmpty() && $otherDocuments->isEmpty())
+                <p>No documents on file.</p>
+            @else
+                @unless($academicDocuments->isEmpty())
+                    <div class="label" style="margin-bottom:4px">Academic Documents</div>
+                    <table class="fields" style="margin-bottom:8px">
+                        @foreach($academicDocuments as $entry)
+                            <tr>
+                                <td colspan="2"><div class="value">{{ $entry['label'] }} &mdash; {{ $entry['document']->original_filename }}</div></td>
+                            </tr>
+                        @endforeach
+                    </table>
+                @endunless
+
+                @unless($otherDocuments->isEmpty())
+                    <div class="label" style="margin-bottom:4px">Other Documents</div>
+                    <table class="fields">
+                        @foreach($otherDocuments as $document)
+                            <tr>
+                                <td colspan="2"><div class="value">{{ $document->title }} &mdash; {{ $document->original_filename }}</div></td>
+                            </tr>
+                        @endforeach
+                    </table>
+                @endunless
             @endif
         </div>
     </div>

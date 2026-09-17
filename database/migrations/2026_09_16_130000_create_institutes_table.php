@@ -7,16 +7,15 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * Admin-managed list of institutes/awarding bodies, shared between the
+     * "Awarding Body" field (Highest Education) and the "Institute Name"
+     * field (Academic Qualifications) on the student enrollment form.
      */
     public function up(): void
     {
-        Schema::create('admission_years', function (Blueprint $table) {
+        Schema::create('institutes', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('title')->unique();
-            $table->boolean('is_active')->default(false);
-            $table->string('year');
-            $table->enum('intake', ['Spring', 'Autumn'])->default('Spring');
+            $table->string('name')->unique();
             $table->timestamps();
         });
     }
@@ -26,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('admission_years');
+        Schema::dropIfExists('institutes');
     }
 };

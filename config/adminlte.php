@@ -867,7 +867,22 @@ return [
                     'text' => 'Course Management',
                     'route' => 'admin.courses.index',
                     'icon' => 'fas fa-fw fa-book',
-                ]
+                ],
+                [
+                    'text' => 'Educational Boards',
+                    'route' => 'admin.document-types.index',
+                    'icon' => 'fas fa-fw fa-file-alt',
+                ],
+                [
+                    'text' => 'Faculties',
+                    'route' => 'admin.faculties.index',
+                    'icon' => 'fas fa-fw fa-graduation-cap',
+                ],
+                [
+                    'text' => 'Institutes',
+                    'route' => 'admin.institutes.index',
+                    'icon' => 'fas fa-fw fa-building-columns',
+                ],
             ],
         ],
 

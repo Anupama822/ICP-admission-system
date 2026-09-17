@@ -5,6 +5,9 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AdmissionYearController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\DocumentTypeController;
+use App\Http\Controllers\FacultyController;
+use App\Http\Controllers\InstituteController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\StaffManagementController;
 use App\Http\Controllers\StudentController;
@@ -83,6 +86,32 @@ Route::middleware(['auth', EnsureUserIsActive::class])->group(function () {
         Route::put('/courses/{course}', [CourseController::class, 'update'])->name('courses.update');
         Route::patch('/courses/{course}/inline', [CourseController::class, 'inlineUpdate'])->name('courses.inline-update');
         Route::delete('/courses/{course}', [CourseController::class, 'destroy'])->name('courses.destroy');
+
+        // Settings > Document Types. Everything (add / rename / delete)
+        // happens inline on the index page, no separate create/edit pages.
+        Route::get('/document-types', [DocumentTypeController::class, 'index'])->name('document-types.index');
+        Route::post('/document-types', [DocumentTypeController::class, 'store'])->name('document-types.store');
+        Route::patch('/document-types/{documentType}/inline', [DocumentTypeController::class, 'inlineUpdate'])->name('document-types.inline-update');
+        Route::delete('/document-types/{documentType}', [DocumentTypeController::class, 'destroy'])->name('document-types.destroy');
+
+        // Settings > Faculty Management. Renaming/deleting is admin-only;
+        // adding a new faculty inline from the student form is also open to
+        // staff with student permissions (see the shared route below).
+        Route::get('/faculties', [FacultyController::class, 'index'])->name('faculties.index');
+        Route::patch('/faculties/{faculty}/inline', [FacultyController::class, 'inlineUpdate'])->name('faculties.inline-update');
+        Route::delete('/faculties/{faculty}', [FacultyController::class, 'destroy'])->name('faculties.destroy');
+
+        // Settings > Institute Management. Same split as Faculty above.
+        Route::get('/institutes', [InstituteController::class, 'index'])->name('institutes.index');
+        Route::patch('/institutes/{institute}/inline', [InstituteController::class, 'inlineUpdate'])->name('institutes.inline-update');
+        Route::delete('/institutes/{institute}', [InstituteController::class, 'destroy'])->name('institutes.destroy');
+    });
+
+    // Shared with student enrollment: any staff permitted to create/edit
+    // students can add a new faculty/institute inline from the Academic step.
+    Route::prefix('admin')->name('admin.')->group(function () {
+        Route::post('/faculties', [FacultyController::class, 'store'])->name('faculties.store');
+        Route::post('/institutes', [InstituteController::class, 'store'])->name('institutes.store');
     });
 
     Route::middleware(EnsureRole::class.':staff')->prefix('staff')->name('staff.')->group(function () {

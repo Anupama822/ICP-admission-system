@@ -6,6 +6,9 @@ use App\DataTables\StudentDataTable;
 use App\Http\Requests\StudentRequest;
 use App\Models\AdmissionYear;
 use App\Models\Course;
+use App\Models\DocumentType;
+use App\Models\Faculty;
+use App\Models\Institute;
 use App\Models\Student;
 use App\Models\StudentDocument;
 use Dompdf\Dompdf;
@@ -41,11 +44,26 @@ class StudentController extends BaseController
         return view($this->createResource(), $this->crudInfo() + $this->formOptions() + ['wide' => true]);
     }
 
+    public function edit(Student $student)
+    {
+        $student->load(['intake', 'qualifications.documents', 'documents']);
+
+        return view($this->editResource(), $this->crudInfo() + ['item' => $student] + $this->formOptions($student) + ['wide' => true]);
+    }
+
     public function store(StudentRequest $request)
     {
-        $admissionYear = AdmissionYear::findOrFail($request->validated('admission_year_id'));
+        $admissionYear = AdmissionYear::active()->firstOrFail();
 
         $attributes = $request->safe()->except(['photo', 'signature', 'qualifications', 'documents']);
+        $attributes['admission_year_id'] = $admissionYear->id;
+        // Semester is not chosen on the form; it always matches the intake
+        // (Spring/Autumn) of the admission year the student enrolled under.
+        $attributes['semester'] = $admissionYear->intake;
+        $attributes['declared_date'] = now();
+        // Not collected on the form; the certificate is issued in the
+        // student's full legal name.
+        $attributes['certificate_name'] = $this->fullNameFromAttributes($attributes);
 
         $student = $this->createWithUniqueAdmissionId($attributes, $admissionYear);
 
@@ -53,7 +71,8 @@ class StudentController extends BaseController
         $this->applySignature($student, $request->input('signature'));
         $student->save();
 
-        $this->syncQualifications($student, $request->input('qualifications', []), $request->file('qualifications', []));
+        [$qualificationRows, $qualificationFiles] = $this->mergeQualificationRows($request);
+        $this->syncQualifications($student, $qualificationRows, $qualificationFiles);
         $this->appendDocuments($student, $request->input('documents', []), $request->file('documents', []));
 
         return $this->gotoCrudIndex()
@@ -62,7 +81,7 @@ class StudentController extends BaseController
 
     public function show(Student $student)
     {
-        $student->load(['course', 'intake', 'qualifications', 'documents']);
+        $student->load(['course', 'intake', 'qualifications.documents', 'documents']);
 
         return view($this->showResource(), $this->crudInfo() + [
             'item' => $student,
@@ -70,16 +89,16 @@ class StudentController extends BaseController
         ]);
     }
 
-    public function edit(Student $student)
-    {
-        $student->load(['qualifications', 'documents']);
-
-        return view($this->editResource(), $this->crudInfo() + ['item' => $student] + $this->formOptions() + ['wide' => true]);
-    }
-
     public function update(StudentRequest $request, Student $student)
     {
-        $student->update($request->safe()->except(['photo', 'signature', 'qualifications', 'documents']));
+        // Admission year, semester and declared date are fixed at enrollment
+        // time and are not editable afterwards.
+        $attributes = $request->safe()->except(['photo', 'signature', 'qualifications', 'documents']);
+        // Not collected on the form; the certificate is issued in the
+        // student's full legal name.
+        $attributes['certificate_name'] = $this->fullNameFromAttributes($attributes);
+
+        $student->update($attributes);
 
         $this->applyPhoto($student, $request->file('photo'));
         if ($request->filled('signature')) {
@@ -87,7 +106,8 @@ class StudentController extends BaseController
         }
         $student->save();
 
-        $this->syncQualifications($student, $request->input('qualifications', []), $request->file('qualifications', []));
+        [$qualificationRows, $qualificationFiles] = $this->mergeQualificationRows($request);
+        $this->syncQualifications($student, $qualificationRows, $qualificationFiles);
         $this->appendDocuments($student, $request->input('documents', []), $request->file('documents', []));
 
         return $this->gotoCrudIndex()
@@ -104,8 +124,8 @@ class StudentController extends BaseController
             }
         }
         foreach ($student->qualifications as $qualification) {
-            if ($qualification->document_path) {
-                Storage::disk('public')->delete($qualification->document_path);
+            foreach ($qualification->documents as $document) {
+                Storage::disk('public')->delete($document->file_path);
             }
         }
         foreach ($student->documents as $document) {
@@ -180,7 +200,7 @@ class StudentController extends BaseController
 
     public function exportPdf(Student $student)
     {
-        $student->load(['course', 'intake', 'qualifications']);
+        $student->load(['course', 'intake', 'qualifications.documents', 'documents']);
 
         $html = view('admin.students.exports.student-pdf', ['student' => $student])->render();
 
@@ -196,13 +216,38 @@ class StudentController extends BaseController
     }
 
     /**
+     * Dropdown data plus the values the Course & Intake step should show
+     * pre-selected: the active admission year (or the student's own, when
+     * editing), the course/level carried over from a failed submission or
+     * the record on file, and the fixed list of entry types.
+     *
      * @return array<string, mixed>
      */
-    private function formOptions(): array
+    private function formOptions(?Student $student = null): array
     {
+        $admissionYears = AdmissionYear::orderByDesc('year')->get();
+        $courses = Course::orderBy('title')->get();
+
+        $activeAdmissionYear = $admissionYears->firstWhere('is_active', true);
+        $selectedAdmissionYearId = $student?->admission_year_id ?? $activeAdmissionYear?->id;
+        $selectedAdmissionYear = $student?->intake ?? $admissionYears->firstWhere('id', $selectedAdmissionYearId);
+
+        $selectedCourseId = old('course_id', $student?->course_id);
+        $selectedCourse = $courses->firstWhere('id', $selectedCourseId);
+
         return [
-            'admissionYears' => AdmissionYear::orderByDesc('year')->get(),
-            'courses' => Course::orderBy('title')->get(),
+            'admissionYears' => $admissionYears,
+            'courses' => $courses,
+            'selectedAdmissionYearId' => $selectedAdmissionYearId,
+            'selectedAdmissionYear' => $selectedAdmissionYear,
+            'selectedCourseId' => $selectedCourseId,
+            'selectedCourse' => $selectedCourse,
+            'selectedLevel' => old('level', $student?->level),
+            'entryTypeOptions' => Student::ENTRY_TYPES,
+            'documentTypes' => DocumentType::orderBy('name')->get(),
+            'documentTypeFormatHints' => DocumentType::orderBy('name')->pluck('format_hint', 'name'),
+            'faculties' => Faculty::orderBy('name')->get(),
+            'institutes' => Institute::orderBy('name')->get(),
         ];
     }
 
@@ -244,6 +289,18 @@ class StudentController extends BaseController
             || str_contains($message, 'duplicate');
     }
 
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function fullNameFromAttributes(array $attributes): string
+    {
+        return trim(collect([
+            $attributes['first_name'] ?? null,
+            $attributes['middle_name'] ?? null,
+            $attributes['last_name'] ?? null,
+        ])->filter()->implode(' '));
+    }
+
     private function applyPhoto(Student $student, ?UploadedFile $photo): void
     {
         if (! $photo) {
@@ -282,46 +339,105 @@ class StudentController extends BaseController
     }
 
     /**
+     * The Academic step submits three kinds of rows that all live in the
+     * same `qualifications` table: the mandatory "highest qualification"
+     * (flagged `is_highest`), the optional "Qualification Description"
+     * entries, and the optional "Academic Qualifications" records (flagged
+     * `is_record`, with Document Type forced to "Academic" regardless of
+     * what was submitted). Combine them into one ordered set before syncing.
+     *
+     * @return array{0: array<int, array<string, mixed>>, 1: array<int, array<string, mixed>>}
+     */
+    private function mergeQualificationRows(StudentRequest $request): array
+    {
+        $highestRow = $request->input('highest_qualification', []);
+        $highestRow['is_highest'] = true;
+        $highestFiles = $request->file('highest_qualification', []);
+
+        $recordRows = array_map(function (array $row) {
+            $row['document_type'] = 'Academic';
+            $row['is_record'] = true;
+
+            return $row;
+        }, $request->input('academic_records', []));
+        $recordFiles = $request->file('academic_records', []);
+
+        $rows = array_merge([$highestRow], $request->input('qualifications', []), $recordRows);
+        $files = array_merge([$highestFiles], $request->file('qualifications', []), $recordFiles);
+
+        return [$rows, $files];
+    }
+
+    /**
      * Replace-all: qualifications have no identity worth preserving beyond
      * their content, so the submitted set becomes the new complete set.
-     * Existing attachments are kept via a hidden `existing_document_path`
-     * field unless a fresh file was uploaded for that row.
+     * Each row's previously-uploaded documents are kept via hidden
+     * `existing_documents[]` fields (dropped client-side if the user removes
+     * one) and newly-uploaded images are appended to them.
      */
     private function syncQualifications(Student $student, array $rows, array $files): void
     {
         $rows = array_values($rows);
 
-        // Store (or carry forward) each row's document exactly once before
-        // touching any existing records.
-        $documentPaths = [];
+        $student->loadMissing('qualifications.documents');
+
+        // original_filename isn't resubmitted for kept documents, so look it
+        // up from what's already on file before anything is deleted.
+        $originalFilenames = $student->qualifications
+            ->flatMap(fn ($qualification) => $qualification->documents)
+            ->pluck('original_filename', 'file_path');
+
+        // Build each row's full document set (kept + newly uploaded) exactly
+        // once before touching any existing records.
+        $documents = [];
         foreach ($rows as $index => $row) {
-            if (isset($files[$index]['document']) && $files[$index]['document'] instanceof UploadedFile) {
-                $documentPaths[$index] = $files[$index]['document']->store('students/qualifications', 'public');
-            } else {
-                $documentPaths[$index] = $row['existing_document_path'] ?? null;
+            $kept = array_values(array_filter((array) ($row['existing_documents'] ?? [])));
+
+            $uploaded = [];
+            foreach ($files[$index]['documents'] ?? [] as $file) {
+                if ($file instanceof UploadedFile) {
+                    $path = $file->store('students/qualifications', 'public');
+                    $uploaded[$path] = $file->getClientOriginalName();
+                }
             }
+
+            $documents[$index] = collect($kept)
+                ->mapWithKeys(fn (string $path) => [$path => $originalFilenames->get($path, basename($path))])
+                ->merge($uploaded);
         }
 
-        $keepPaths = array_filter($documentPaths);
+        $keepPaths = collect($documents)->flatMap(fn ($paths) => $paths->keys())->all();
 
         foreach ($student->qualifications as $existing) {
-            if ($existing->document_path && ! in_array($existing->document_path, $keepPaths, true)) {
-                Storage::disk('public')->delete($existing->document_path);
+            foreach ($existing->documents as $document) {
+                if (! in_array($document->file_path, $keepPaths, true)) {
+                    Storage::disk('public')->delete($document->file_path);
+                }
             }
         }
 
         $student->qualifications()->delete();
 
         foreach ($rows as $index => $row) {
-            $student->qualifications()->create([
+            $qualification = $student->qualifications()->create([
                 'document_type' => $row['document_type'],
                 'awarded_year' => $row['awarded_year'] ?? null,
-                'subject' => $row['subject'],
-                'institute_name' => $row['institute_name'],
+                'faculty' => $row['faculty'] ?? null,
+                'institute_name' => $row['institute_name'] ?? null,
                 'score' => $row['score'] ?? null,
-                'document_path' => $documentPaths[$index],
+                'score_type' => $row['score_type'] ?? null,
+                'qualification_description' => $row['qualification_description'] ?? null,
+                'is_highest' => $row['is_highest'] ?? false,
+                'is_record' => $row['is_record'] ?? false,
                 'sort_order' => $index,
             ]);
+
+            foreach ($documents[$index] as $path => $originalFilename) {
+                $qualification->documents()->create([
+                    'file_path' => $path,
+                    'original_filename' => $originalFilename,
+                ]);
+            }
         }
     }
 
@@ -332,17 +448,17 @@ class StudentController extends BaseController
     private function appendDocuments(Student $student, array $rows, array $files): void
     {
         foreach (array_values($rows) as $index => $row) {
-            if (! isset($files[$index]['file']) || ! $files[$index]['file'] instanceof UploadedFile) {
-                continue;
+            foreach ($files[$index]['files'] ?? [] as $file) {
+                if (! $file instanceof UploadedFile) {
+                    continue;
+                }
+
+                $student->documents()->create([
+                    'title' => $row['title'],
+                    'file_path' => $file->store('students/documents', 'public'),
+                    'original_filename' => $file->getClientOriginalName(),
+                ]);
             }
-
-            $file = $files[$index]['file'];
-
-            $student->documents()->create([
-                'title' => $row['title'],
-                'file_path' => $file->store('students/documents', 'public'),
-                'original_filename' => $file->getClientOriginalName(),
-            ]);
         }
     }
 }

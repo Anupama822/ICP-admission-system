@@ -1,8 +1,11 @@
+@php
+    $enrollment = $student->enrollment;
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>{{ $student->admission_id }}</title>
+    <title>{{ $enrollment?->admission_id }}</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -68,7 +71,7 @@
         <div class="logo"><img src="{{ public_path('images/logo.png') }}" alt="Logo"></div>
         <div class="brand">
             <div class="name">Informatics College Pokhara</div>
-            <div class="tagline">Student Enrollment Form &middot; Admission ID: {{ $student->admission_id }} &middot; Group: {{ $student->group }}</div>
+            <div class="tagline">Student Enrollment Form &middot; Admission ID: {{ $enrollment?->admission_id }} &middot; Group: {{ $student->group }}</div>
         </div>
         @if($student->photo_path && Storage::disk('public')->exists($student->photo_path))
             <div class="photo-block">
@@ -94,7 +97,7 @@
                     <td><div class="label">Passport Number</div><div class="value">{{ $student->passport_number ?: '--' }}</div></td>
                 </tr>
                 <tr>
-                    <td><div class="label">Declared Date</div><div class="value">{{ $student->declared_date?->format('Y-m-d') }}</div></td>
+                    <td><div class="label">Declared Date</div><div class="value">{{ $enrollment?->declared_date?->format('Y-m-d') }}</div></td>
                     <td></td>
                 </tr>
             </table>
@@ -107,11 +110,11 @@
             <table class="fields">
                 <tr>
                     <td><div class="label">Course</div><div class="value">{{ $student->course?->title }}</div></td>
-                    <td><div class="label">Level</div><div class="value">{{ $student->level }}</div></td>
+                    <td><div class="label">Level</div><div class="value">{{ $enrollment?->level }}</div></td>
                 </tr>
                 <tr>
-                    <td><div class="label">Entry Type</div><div class="value">{{ $student->entry_type }}</div></td>
-                    <td><div class="label">Semester</div><div class="value">{{ $student->semester }}</div></td>
+                    <td><div class="label">Entry Type</div><div class="value">{{ $enrollment?->entry_type }}</div></td>
+                    <td><div class="label">Semester</div><div class="value">{{ $enrollment?->semester }}</div></td>
                 </tr>
                 <tr>
                     <td><div class="label">Intake Year</div><div class="value">{{ $student->intake?->title }}</div></td>

@@ -12,12 +12,19 @@ class DocumentTypeSeeder extends Seeder
      * enrollment form. Admins can add more from Settings > Educational
      * Boards.
      */
-    private const NAMES = ['SEE', 'NEB', 'A-Level'];
+    private const DOCUMENT_TYPES = [
+        'SEE' => 'SEE (Agg GPA- 4.00/ English A, Maths A)',
+        'NEB' => 'NEB +2 (CGPA-4.00 Year 12 Eng- A)',
+        'A-Level' => 'A-level (Agg GPA- 4.00/ English A+, Maths A+)',
+    ];
 
     public function run(): void
     {
-        foreach (self::NAMES as $name) {
-            DocumentType::updateOrCreate(['name' => $name]);
+        foreach (self::DOCUMENT_TYPES as $name => $formatHint) {
+            DocumentType::updateOrCreate(
+                ['name' => $name],
+                ['format_hint' => $formatHint]
+            );
         }
     }
 }

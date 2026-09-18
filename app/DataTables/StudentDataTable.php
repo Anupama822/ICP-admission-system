@@ -43,9 +43,21 @@ class StudentDataTable extends DataTable
             ->setRowId('id');
     }
 
+    /**
+     * Rooted on Student (the route-bound model behind every row's actions).
+     * Course and intake are Student's own relations, but admission_id
+     * only lives on enrollments, so that table is left-joined in to keep
+     * it working as a plain, sortable/searchable column via the
+     * "enrollments.admission_id" alias below, rather than needing Yajra's
+     * relation-column support.
+     */
     public function query(Student $model): EloquentBuilder
     {
-        return $model->newQuery()->with(['course', 'intake']);
+        return $model->newQuery()
+            ->select('students.*')
+            ->addSelect('enrollments.admission_id as admission_id')
+            ->leftJoin('enrollments', 'enrollments.student_id', '=', 'students.id')
+            ->with(['course', 'intake']);
     }
 
     public function html(): HtmlBuilder

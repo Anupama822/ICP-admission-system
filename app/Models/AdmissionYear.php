@@ -36,9 +36,9 @@ class AdmissionYear extends Model
         return $query->where('is_active', true);
     }
 
-    public function students(): HasMany
+    public function enrollments(): HasMany
     {
-        return $this->hasMany(Student::class, 'admission_year_id');
+        return $this->hasMany(Enrollment::class, 'admission_year_id');
     }
 
     /**

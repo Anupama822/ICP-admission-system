@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.2",
         "blade-ui-kit/blade-heroicons": "*",
+        "davidhsianturi/blade-bootstrap-icons": "^2.2",
         "dompdf/dompdf": "*",
         "jeroennoten/laravel-adminlte": "^4.0",
         "laravel/framework": "^12.0",

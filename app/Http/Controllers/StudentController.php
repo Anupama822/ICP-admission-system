@@ -7,6 +7,7 @@ use App\Http\Requests\StudentRequest;
 use App\Models\AdmissionYear;
 use App\Models\Course;
 use App\Models\DocumentType;
+use App\Models\Enrollment;
 use App\Models\Faculty;
 use App\Models\Institute;
 use App\Models\Student;
@@ -46,7 +47,7 @@ class StudentController extends BaseController
 
     public function edit(Student $student)
     {
-        $student->load(['intake', 'qualifications.documents', 'documents']);
+        $student->load(['course', 'intake', 'enrollment', 'qualifications.documents', 'documents']);
 
         return view($this->editResource(), $this->crudInfo() + ['item' => $student] + $this->formOptions($student) + ['wide' => true]);
     }
@@ -55,17 +56,27 @@ class StudentController extends BaseController
     {
         $admissionYear = AdmissionYear::active()->firstOrFail();
 
+        // The submitted fields cover both the person (name, contact,
+        // guardian, medical, course, ...) and this specific enrollment
+        // (level, entry type, ...); each model below only picks up the
+        // subset that's in its own $fillable list, so the same array can be
+        // handed to both. Course and intake year are duplicated onto the
+        // student row itself (see Student::course()/intake()).
         $attributes = $request->safe()->except(['photo', 'signature', 'qualifications', 'documents']);
-        $attributes['admission_year_id'] = $admissionYear->id;
-        // Semester is not chosen on the form; it always matches the intake
-        // (Spring/Autumn) of the admission year the student enrolled under.
-        $attributes['semester'] = $admissionYear->intake;
-        $attributes['declared_date'] = now();
         // Not collected on the form; the certificate is issued in the
         // student's full legal name.
         $attributes['certificate_name'] = $this->fullNameFromAttributes($attributes);
+        $attributes['admission_year_id'] = $admissionYear->id;
 
-        $student = $this->createWithUniqueAdmissionId($attributes, $admissionYear);
+        $enrollmentAttributes = $attributes;
+        // Semester is not chosen on the form; it always matches the intake
+        // (Spring/Autumn) of the admission year the student enrolled under.
+        $enrollmentAttributes['semester'] = $admissionYear->intake;
+        $enrollmentAttributes['declared_date'] = now();
+
+        // Student and enrollment are created together so both land on the
+        // same auto-assigned group.
+        [$student, $enrollment] = $this->createStudentWithUniqueAdmissionId($attributes, $enrollmentAttributes, $admissionYear);
 
         $this->applyPhoto($student, $request->file('photo'));
         $this->applySignature($student, $request->input('signature'));
@@ -76,12 +87,12 @@ class StudentController extends BaseController
         $this->appendDocuments($student, $request->input('documents', []), $request->file('documents', []));
 
         return $this->gotoCrudIndex()
-            ->with('status', "Student {$student->fullName()} enrolled successfully. Admission ID: {$student->admission_id}.");
+            ->with('status', "Student {$student->fullName()} enrolled successfully. Admission ID: {$enrollment->admission_id}.");
     }
 
     public function show(Student $student)
     {
-        $student->load(['course', 'intake', 'qualifications.documents', 'documents']);
+        $student->load(['course', 'intake', 'enrollment', 'qualifications.documents', 'documents']);
 
         return view($this->showResource(), $this->crudInfo() + [
             'item' => $student,
@@ -91,8 +102,8 @@ class StudentController extends BaseController
 
     public function update(StudentRequest $request, Student $student)
     {
-        // Admission year, semester and declared date are fixed at enrollment
-        // time and are not editable afterwards.
+        // Admission year, semester, admission ID, group and declared date
+        // are fixed at enrollment time and are not editable afterwards.
         $attributes = $request->safe()->except(['photo', 'signature', 'qualifications', 'documents']);
         // Not collected on the form; the certificate is issued in the
         // student's full legal name.
@@ -105,6 +116,8 @@ class StudentController extends BaseController
             $this->applySignature($student, $request->input('signature'));
         }
         $student->save();
+
+        $student->enrollment?->update(collect($attributes)->only(['course_id', 'level', 'entry_type'])->all());
 
         [$qualificationRows, $qualificationFiles] = $this->mergeQualificationRows($request);
         $this->syncQualifications($student, $qualificationRows, $qualificationFiles);
@@ -168,16 +181,18 @@ class StudentController extends BaseController
             $handle = fopen('php://output', 'w');
             fputcsv($handle, $headers);
 
-            Student::query()->with(['course', 'intake'])->orderBy('admission_id')
-                ->chunk(200, function ($students) use ($handle) {
-                    foreach ($students as $student) {
+            Enrollment::query()->with(['student.course', 'student.intake'])->orderBy('admission_id')
+                ->chunk(200, function ($enrollments) use ($handle) {
+                    foreach ($enrollments as $enrollment) {
+                        $student = $enrollment->student;
+
                         fputcsv($handle, [
                             $student->fullName(),
                             $student->university_registration_no,
-                            $student->admission_id,
-                            $student->level,
+                            $enrollment->admission_id,
+                            $enrollment->level,
                             $student->group,
-                            $student->biometric_id ?: $student->admission_id,
+                            $student->biometric_id ?: $enrollment->admission_id,
                             optional($student->dob_ad)->format('Y-m-d'),
                             ucfirst((string) $student->gender),
                             $student->email_1,
@@ -200,7 +215,7 @@ class StudentController extends BaseController
 
     public function exportPdf(Student $student)
     {
-        $student->load(['course', 'intake', 'qualifications.documents', 'documents']);
+        $student->load(['course', 'intake', 'enrollment', 'qualifications.documents', 'documents']);
 
         $html = view('admin.students.exports.student-pdf', ['student' => $student])->render();
 
@@ -211,7 +226,7 @@ class StudentController extends BaseController
 
         return response($dompdf->output(), 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.$student->admission_id.'.pdf"',
+            'Content-Disposition' => 'attachment; filename="'.$student->enrollment?->admission_id.'.pdf"',
         ]);
     }
 
@@ -242,7 +257,7 @@ class StudentController extends BaseController
             'selectedAdmissionYear' => $selectedAdmissionYear,
             'selectedCourseId' => $selectedCourseId,
             'selectedCourse' => $selectedCourse,
-            'selectedLevel' => old('level', $student?->level),
+            'selectedLevel' => old('level', $student?->enrollment?->level),
             'entryTypeOptions' => Student::ENTRY_TYPES,
             'documentTypes' => DocumentType::orderBy('name')->get(),
             'documentTypeFormatHints' => DocumentType::orderBy('name')->pluck('format_hint', 'name'),
@@ -253,22 +268,32 @@ class StudentController extends BaseController
 
     /**
      * Reserve an admission ID + group inside a transaction and create the
-     * student, retrying if a concurrent enrollment claimed the same number
-     * first (the unique index on admission_id is the real safety net; the
-     * locked read in Student::nextEnrollment() only prevents collisions
-     * when a row for that year already exists to lock).
+     * student and its enrollment together, so both land on the same group,
+     * retrying if a concurrent enrollment claimed the same number first
+     * (the unique index on admission_id is the real safety net; the locked
+     * read in Enrollment::nextEnrollment() only prevents collisions when a
+     * row for that year already exists to lock).
+     *
+     * @return array{0: Student, 1: Enrollment}
      */
-    private function createWithUniqueAdmissionId(array $attributes, AdmissionYear $admissionYear, int $attempts = 3): Student
+    private function createStudentWithUniqueAdmissionId(array $studentAttributes, array $enrollmentAttributes, AdmissionYear $admissionYear, int $attempts = 3): array
     {
         for ($i = 1; $i <= $attempts; $i++) {
             try {
-                return DB::transaction(function () use ($attributes, $admissionYear) {
-                    $enrollment = Student::nextEnrollment($admissionYear->year);
+                return DB::transaction(function () use ($studentAttributes, $enrollmentAttributes, $admissionYear) {
+                    $next = Enrollment::nextEnrollment($admissionYear->year);
 
-                    return Student::create($attributes + [
-                        'admission_id' => $enrollment['admission_id'],
-                        'group' => $enrollment['group'],
+                    $student = Student::create($studentAttributes + ['group' => $next['group']]);
+
+                    $enrollment = $student->enrollment()->create($enrollmentAttributes + [
+                        'admission_id' => $next['admission_id'],
                     ]);
+
+                    // Populate the relation cache so callers (e.g. the photo
+                    // filename below) don't need an extra query to see it.
+                    $student->setRelation('enrollment', $enrollment);
+
+                    return [$student, $enrollment];
                 });
             } catch (QueryException $e) {
                 if ($i === $attempts || ! $this->isUniqueConstraintViolation($e)) {
@@ -311,7 +336,7 @@ class StudentController extends BaseController
             Storage::disk('public')->delete($student->photo_path);
         }
 
-        $filename = Str::of($student->admission_id.' '.$student->fullName())
+        $filename = Str::of($student->enrollment?->admission_id.' '.$student->fullName())
             ->replaceMatches('/[^A-Za-z0-9 _-]/', '')
             ->trim()
             ->append('.jpg');

@@ -124,7 +124,7 @@ class AdmissionYearController extends BaseController
                 : redirect()->back()->withErrors($message);
         }
 
-        if ($admissionYear->students()->exists()) {
+        if ($admissionYear->enrollments()->exists()) {
             $message = 'This admission year has enrolled students and cannot be deleted.';
 
             return $request->expectsJson()

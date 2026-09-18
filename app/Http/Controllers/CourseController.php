@@ -122,7 +122,7 @@ class CourseController extends BaseController
 
     public function destroy(Request $request, Course $course)
     {
-        if ($course->students()->exists()) {
+        if ($course->enrollments()->exists()) {
             $message = 'This course has enrolled students and cannot be deleted.';
 
             return $request->expectsJson()

@@ -8,22 +8,22 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Student extends Model
 {
     /** @use HasFactory<StudentFactory> */
     use HasFactory, HasUuids;
 
-    /** Enrollments are grouped into classes of this size: C1, C2, ... */
-    private const GROUP_SIZE = 30;
-
-    /** Allowed values for the `entry_type` column. */
+    /** Allowed values for the `entry_type` column on enrollments. */
     public const ENTRY_TYPES = ['Standard', 'Non-standard'];
 
     protected $fillable = [
-        'admission_id',
         'admission_year_id',
         'course_id',
+        'group',
+        'biometric_id',
+        'university_registration_no',
         'first_name',
         'middle_name',
         'last_name',
@@ -35,14 +35,7 @@ class Student extends Model
         'citizenship_issued_date',
         'passport_number',
         'passport_issued_date',
-        'declared_date',
         'photo_path',
-        'level',
-        'entry_type',
-        'semester',
-        'group',
-        'biometric_id',
-        'university_registration_no',
         'permanent_address',
         'corresponding_address',
         'mobile',
@@ -73,13 +66,28 @@ class Student extends Model
             // citizenship_issued_date / passport_issued_date are recorded in
             // the Bikram Sambat (BS) calendar, like dob_bs, so they stay
             // plain strings rather than Carbon-cast Gregorian dates.
-            'declared_date' => 'date',
             'has_disorder' => 'boolean',
             'is_drug_abuser' => 'boolean',
             'has_criminal_record' => 'boolean',
             'has_communicable_disease' => 'boolean',
             'is_minor_requiring_consent' => 'boolean',
         ];
+    }
+
+    /**
+     * The student's enrollment: admission ID, level, entry type, semester,
+     * declared date, etc. A student has one today, but the relationship
+     * (rather than flat columns on this table) leaves room for a later
+     * re-admission to add a second one without disturbing personal details
+     * already on file.
+     *
+     * Course and intake year are duplicated onto this table directly (see
+     * course()/intake() below) so the student's current ones are available
+     * without joining through here.
+     */
+    public function enrollment(): HasOne
+    {
+        return $this->hasOne(Enrollment::class);
     }
 
     public function intake(): BelongsTo
@@ -106,32 +114,4 @@ class Student extends Model
     {
         return trim(collect([$this->first_name, $this->middle_name, $this->last_name])->filter()->implode(' '));
     }
-
-    /**
-     * The next enrollment sequence number for an intake year, and the class
-     * group ("C1", "C2", ...) it lands in. Both are derived from the same
-     * locked read so the admission ID and the group can never drift apart.
-     *
-     * Scoped by the year *string* (not the admission_year_id row) so the
-     * 8-digit admission ID stays unique even if two AdmissionYear rows ever
-     * share the same year value.
-     *
-     * @return array{sequence: int, admission_id: string, group: string}
-     */
-    public static function nextEnrollment(string $year): array
-    {
-        $latest = static::where('admission_id', 'like', $year.'%')
-            ->lockForUpdate()
-            ->orderByDesc('admission_id')
-            ->value('admission_id');
-
-        $sequence = $latest ? ((int) substr($latest, -4)) + 1 : 1;
-
-        return [
-            'sequence' => $sequence,
-            'admission_id' => sprintf('%s%04d', $year, $sequence),
-            'group' => 'C'.(int) ceil($sequence / self::GROUP_SIZE),
-        ];
-    }
-
 }

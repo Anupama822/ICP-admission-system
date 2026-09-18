@@ -14,11 +14,14 @@ return new class extends Migration
         Schema::create('students', function (Blueprint $table) {
             $table->uuid('id')->primary();
 
-            // Auto-generated 8-digit ID: 4-digit intake year + 4-digit sequence.
-            $table->string('admission_id', 8)->unique();
-
+            // Current course / intake, kept here (as well as on the
+            // enrollment record itself) so listings and lookups don't need
+            // to join through `enrollments` just to show them.
             $table->foreignUuid('admission_year_id')->constrained('admission_years')->restrictOnDelete();
             $table->foreignUuid('course_id')->constrained('courses')->restrictOnDelete();
+            $table->string('group');
+            $table->string('biometric_id')->nullable();
+            $table->string('university_registration_no')->nullable();
 
             // Personal details.
             $table->string('first_name');
@@ -32,16 +35,7 @@ return new class extends Migration
             $table->string('citizenship_issued_date')->nullable();
             $table->string('passport_number')->nullable()->unique();
             $table->string('passport_issued_date')->nullable();
-            $table->date('declared_date');
             $table->string('photo_path')->nullable();
-
-            // Course / intake details.
-            $table->string('level');
-            $table->string('entry_type');
-            $table->enum('semester', ['Spring', 'Summer', 'Autumn']);
-            $table->string('group');
-            $table->string('biometric_id')->nullable();
-            $table->string('university_registration_no')->nullable();
 
             // Contact details.
             $table->string('permanent_address');

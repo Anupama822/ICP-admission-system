@@ -12,7 +12,7 @@
             @endif
             <div>
                 <h2 class="mb-0" style="font-size:1.1rem">{{ $item->fullName() }}</h2>
-                <p class="mb-0 small text-muted">Student ID <strong>{{ $item->admission_id }}</strong> &middot; Group <strong>{{ $item->group }}</strong></p>
+                <p class="mb-0 small text-muted">Student ID <strong>{{ $item->enrollment?->admission_id }}</strong> &middot; Group <strong>{{ $item->group }}</strong></p>
             </div>
         </div>
         @can('students.export-pdf')
@@ -38,7 +38,7 @@
             <dt class="col-12 col-sm-4">Passport number</dt>
             <dd class="col-12 col-sm-8">{{ $item->passport_number ?: '—' }}</dd>
             <dt class="col-12 col-sm-4">Declared date</dt>
-            <dd class="col-12 col-sm-8">{{ $item->declared_date?->format('d M, Y') }}</dd>
+            <dd class="col-12 col-sm-8">{{ $item->enrollment?->declared_date?->format('d M, Y') }}</dd>
         </dl>
     </div>
 
@@ -119,7 +119,7 @@
             <dt class="col-12 col-sm-4">Intake</dt>
             <dd class="col-12 col-sm-8">{{ $item->intake?->title }}</dd>
             <dt class="col-12 col-sm-4">Level / Entry type / Semester</dt>
-            <dd class="col-12 col-sm-8">{{ $item->level }} &middot; {{ $item->entry_type }} &middot; {{ $item->semester }}</dd>
+            <dd class="col-12 col-sm-8">{{ $item->enrollment?->level }} &middot; {{ $item->enrollment?->entry_type }} &middot; {{ $item->enrollment?->semester }}</dd>
             <dt class="col-12 col-sm-4">Biometric ID</dt>
             <dd class="col-12 col-sm-8">{{ $item->biometric_id ?: '—' }}</dd>
             <dt class="col-12 col-sm-4">University registration no. (LMU)</dt>

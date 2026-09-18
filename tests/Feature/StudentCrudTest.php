@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AdmissionYear;
 use App\Models\Course;
 use App\Models\DocumentType;
+use App\Models\Enrollment;
 use App\Models\Faculty;
 use App\Models\Institute;
 use App\Models\Student;
@@ -76,6 +77,33 @@ class StudentCrudTest extends TestCase
     }
 
     /**
+     * A student with an on-file enrollment against this test's admission
+     * year and course, for routes/assertions that need a persisted record
+     * rather than one created through the store() endpoint. `group`,
+     * `biometric_id` and `university_registration_no` live on the student
+     * row; everything else overridable here (e.g. `admission_id`) is an
+     * enrollment field.
+     */
+    private function createEnrolledStudent(array $overrides = []): Student
+    {
+        $studentKeys = ['group', 'biometric_id', 'university_registration_no'];
+        $studentOverrides = array_intersect_key($overrides, array_flip($studentKeys));
+        $enrollmentOverrides = array_diff_key($overrides, $studentOverrides);
+
+        $student = Student::factory()->create(array_merge([
+            'admission_year_id' => $this->admissionYear->id,
+            'course_id' => $this->course->id,
+        ], $studentOverrides));
+
+        Enrollment::factory()->for($student)->create(array_merge([
+            'admission_year_id' => $this->admissionYear->id,
+            'course_id' => $this->course->id,
+        ], $enrollmentOverrides));
+
+        return $student->fresh(['enrollment', 'course', 'intake']);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function payload(array $overrides = []): array
@@ -130,7 +158,7 @@ class StudentCrudTest extends TestCase
     #[Test]
     public function create_edit_and_show_pages_render(): void
     {
-        $student = Student::factory()->create(['admission_year_id' => $this->admissionYear->id, 'course_id' => $this->course->id]);
+        $student = $this->createEnrolledStudent();
         $admin = $this->admin;
 
         $this->actingAs($admin)->get(route('admin.students.create'))
@@ -140,7 +168,7 @@ class StudentCrudTest extends TestCase
             ->assertOk()->assertSee('Edit Student');
 
         $this->actingAs($admin)->get(route('admin.students.show', $student))
-            ->assertOk()->assertSee($student->admission_id);
+            ->assertOk()->assertSee($student->enrollment->admission_id);
     }
 
     #[Test]
@@ -174,7 +202,7 @@ class StudentCrudTest extends TestCase
 
         $student = Student::where('email_1', 'krish@example.test')->firstOrFail();
 
-        $this->assertMatchesRegularExpression('/^2026\d{4}$/', $student->admission_id);
+        $this->assertMatchesRegularExpression('/^2026\d{4}$/', $student->enrollment->admission_id);
         $this->assertSame('C1', $student->group);
         $this->assertNotNull($student->signature_path);
         Storage::disk('public')->assertExists($student->signature_path);
@@ -299,22 +327,22 @@ class StudentCrudTest extends TestCase
             'citizenship_number' => '46-01-78-11111',
         ]));
 
-        $students = Student::orderBy('admission_id')->get();
+        $enrollments = Enrollment::orderBy('admission_id')->get();
 
-        $this->assertCount(2, $students);
-        $this->assertSame('20260001', $students[0]->admission_id);
-        $this->assertSame('20260002', $students[1]->admission_id);
+        $this->assertCount(2, $enrollments);
+        $this->assertSame('20260001', $enrollments[0]->admission_id);
+        $this->assertSame('20260002', $enrollments[1]->admission_id);
     }
 
     #[Test]
     public function the_thirty_first_enrollment_in_a_year_lands_in_the_next_group(): void
     {
-        $enrollment = Student::nextEnrollment('2026');
+        $enrollment = Enrollment::nextEnrollment('2026');
         $this->assertSame(1, $enrollment['sequence']);
         $this->assertSame('C1', $enrollment['group']);
 
-        Student::factory()->create(['admission_id' => '20260030']);
-        $next = Student::nextEnrollment('2026');
+        $this->createEnrolledStudent(['admission_id' => '20260030']);
+        $next = Enrollment::nextEnrollment('2026');
         $this->assertSame(31, $next['sequence']);
         $this->assertSame('20260031', $next['admission_id']);
         $this->assertSame('C2', $next['group']);
@@ -345,10 +373,10 @@ class StudentCrudTest extends TestCase
     #[Test]
     public function admission_id_is_unique_at_the_database_level(): void
     {
-        Student::factory()->create(['admission_id' => '20260001']);
+        $this->createEnrolledStudent(['admission_id' => '20260001']);
 
         $this->expectException(\Illuminate\Database\QueryException::class);
-        Student::factory()->create(['admission_id' => '20260001']);
+        $this->createEnrolledStudent(['admission_id' => '20260001']);
     }
 
     #[Test]
@@ -392,7 +420,7 @@ class StudentCrudTest extends TestCase
     #[Test]
     public function admin_can_update_a_student_and_replace_qualifications(): void
     {
-        $student = Student::factory()->create(['admission_year_id' => $this->admissionYear->id, 'course_id' => $this->course->id]);
+        $student = $this->createEnrolledStudent();
         $student->qualifications()->create(['document_type' => 'Academic', 'faculty' => 'Old Faculty', 'institute_name' => 'Old Institute', 'sort_order' => 0]);
 
         $payload = $this->payload([
@@ -419,20 +447,23 @@ class StudentCrudTest extends TestCase
     #[Test]
     public function admin_can_delete_a_student(): void
     {
-        $student = Student::factory()->create(['admission_year_id' => $this->admissionYear->id, 'course_id' => $this->course->id]);
+        $student = $this->createEnrolledStudent();
+        $enrollmentId = $student->enrollment->id;
 
         $this->actingAs($this->admin)
             ->deleteJson(route('admin.students.destroy', $student))
             ->assertOk();
 
         $this->assertDatabaseMissing('students', ['id' => $student->id]);
+        // Enrollments cascade-delete with their student.
+        $this->assertDatabaseMissing('enrollments', ['id' => $enrollmentId]);
     }
 
     #[Test]
     public function staff_without_any_permission_are_blocked_from_every_route(): void
     {
         $staff = $this->staff();
-        $student = Student::factory()->create(['admission_year_id' => $this->admissionYear->id, 'course_id' => $this->course->id]);
+        $student = $this->createEnrolledStudent();
 
         $this->actingAs($staff)->get(route('admin.students.index'))->assertForbidden();
         $this->actingAs($staff)->get(route('admin.students.create'))->assertForbidden();
@@ -449,7 +480,7 @@ class StudentCrudTest extends TestCase
     public function staff_with_view_only_permission_can_list_and_view_but_nothing_else(): void
     {
         $staff = $this->staff(['students.view']);
-        $student = Student::factory()->create(['admission_year_id' => $this->admissionYear->id, 'course_id' => $this->course->id]);
+        $student = $this->createEnrolledStudent();
 
         $this->actingAs($staff)->get(route('admin.students.index'))->assertOk();
         $this->actingAs($staff)->get(route('admin.students.show', $student))->assertOk();
@@ -460,7 +491,7 @@ class StudentCrudTest extends TestCase
     #[Test]
     public function admin_always_passes_regardless_of_granted_permissions(): void
     {
-        $student = Student::factory()->create(['admission_year_id' => $this->admissionYear->id, 'course_id' => $this->course->id]);
+        $student = $this->createEnrolledStudent();
 
         $this->actingAs($this->admin)->get(route('admin.students.index'))->assertOk();
         $this->actingAs($this->admin)->get(route('admin.students.export-csv'))->assertOk();
@@ -470,12 +501,7 @@ class StudentCrudTest extends TestCase
     #[Test]
     public function export_csv_returns_exactly_the_required_columns_in_order(): void
     {
-        Student::factory()->create([
-            'admission_year_id' => $this->admissionYear->id,
-            'course_id' => $this->course->id,
-            'admission_id' => '20260001',
-            'group' => 'C1',
-        ]);
+        $this->createEnrolledStudent(['admission_id' => '20260001', 'group' => 'C1']);
 
         $response = $this->actingAs($this->admin)->get(route('admin.students.export-csv'));
 
@@ -495,11 +521,7 @@ class StudentCrudTest extends TestCase
     #[Test]
     public function export_pdf_streams_a_pdf_document(): void
     {
-        $student = Student::factory()->create([
-            'admission_year_id' => $this->admissionYear->id,
-            'course_id' => $this->course->id,
-            'admission_id' => '20260005',
-        ]);
+        $student = $this->createEnrolledStudent(['admission_id' => '20260005']);
 
         $response = $this->actingAs($this->admin)->get(route('admin.students.export-pdf', $student));
 

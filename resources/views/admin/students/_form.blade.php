@@ -91,7 +91,7 @@
             @if($item)
                 <div class="icp-info-chip">
                     <span class="icp-info-label">Student ID</span>
-                    <span class="icp-info-value">{{ $item->admission_id }}</span>
+                    <span class="icp-info-value">{{ $item->enrollment?->admission_id }}</span>
                 </div>
                 <div class="icp-info-chip">
                     <span class="icp-info-label">Group</span>
@@ -152,9 +152,9 @@
             <div class="col-12 col-sm-6">
                 <label for="entry_type" class="form-label fw-semibold small icp-label">Entry type</label>
                 <select id="entry_type" name="entry_type" required class="form-select icp-input @error('entry_type') is-invalid @enderror">
-                    <option value="" disabled @selected(! old('entry_type', $item?->entry_type))>Select entry type&hellip;</option>
+                    <option value="" disabled @selected(! old('entry_type', $item?->enrollment?->entry_type))>Select entry type&hellip;</option>
                     @foreach($entryTypeOptions as $option)
-                        <option value="{{ $option }}" @selected(old('entry_type', $item?->entry_type) === $option)>{{ $option }}</option>
+                        <option value="{{ $option }}" @selected(old('entry_type', $item?->enrollment?->entry_type) === $option)>{{ $option }}</option>
                     @endforeach
                 </select>
                 @error('entry_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -288,7 +288,7 @@
 </div>
 
 {{-- ── Contact Information ── --}}
-<div class="icp-form-section form-step" data-step="3`">
+<div class="icp-form-section form-step" data-step="3">
     <div class="icp-card-header">
         <p class="icp-card-title">Contact Information</p>
     </div>
@@ -480,11 +480,18 @@
                         <select name="qualifications[{{ $loop->index }}][document_type]" required class="form-select icp-input js-document-type-select">
                             <option value="" disabled @selected(empty($qualification['document_type']))>Select&hellip;</option>
                             @foreach($documentTypes as $documentType)
-                                <option value="{{ $documentType->name }}" @selected(($qualification['document_type'] ?? null) === $documentType->name)>{{ $documentType->name }}, {{ $documentType->format_hint }}</option>
+                                <option value="{{ $documentType->name }}" @selected(($qualification['document_type'] ?? null) === $documentType->name)>{{ $documentType->name }}</option>
                             @endforeach
                         </select>
                     </div>
-                    <div class="form-text small js-format-hint mb-2">{{ $documentTypeFormatHints[$qualification['document_type'] ?? null] ?? '' }}</div>
+                    <div class="d-flex align-items-center gap-1 mb-2">
+                        <div class="form-text small js-format-hint mb-0">{{ $documentTypeFormatHints[$qualification['document_type'] ?? null] ?? '' }}</div>
+                        <button type="button" class="icp-btn-icon-xs js-copy-hint flex-shrink-0"
+                            title="Copy format hint" {{ empty($documentTypeFormatHints[$qualification['document_type'] ?? null] ?? '') ? 'hidden' : '' }}>
+                            <span class="js-copy-icon-default">@svg('bi-copy')</span>
+                            @svg('heroicon-m-check', 'js-copy-icon-success d-none')
+                        </button>
+                    </div>
                     <textarea name="qualifications[{{ $loop->index }}][qualification_description]" rows="2" placeholder="Describe the qualification&hellip;" class="form-control icp-input js-qualification-description mb-2">{{ $qualification['qualification_description'] ?? null }}</textarea>
                     @if($qualificationExistingDocuments->isNotEmpty())
                         <div class="d-flex flex-wrap gap-2 mb-2 js-existing-documents">
@@ -520,7 +527,13 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="form-text small js-format-hint mb-2"></div>
+                <div class="d-flex align-items-center gap-1 mb-2">
+                    <div class="form-text small js-format-hint mb-0"></div>
+                    <button type="button" class="icp-btn-icon-xs js-copy-hint flex-shrink-0" title="Copy format hint" hidden>
+                        <span class="js-copy-icon-default">@svg('bi-copy')</span>
+                        @svg('heroicon-m-check', 'js-copy-icon-success d-none')
+                    </button>
+                </div>
                 <textarea name="qualifications[__INDEX__][qualification_description]" rows="2" placeholder="Describe the qualification&hellip;" class="form-control icp-input js-qualification-description mb-2"></textarea>
                 <div class="form-text small text-muted mb-1">Attach images (optional, multiple allowed)</div>
                 <input type="file" name="qualifications[__INDEX__][documents][]" accept="image/*" multiple class="form-control icp-input js-multi-file-input">
@@ -744,7 +757,7 @@
                 @svg('heroicon-m-pencil', 'icp-icon-sm')
                 <span>Capture Signature</span>
             </button>
-            <button type="button" id="js-signotec-done" class="btn btn-primary d-inline-flex align-items-center gap-2 px-4 py-2" style="display:none">
+            <button type="button" id="js-signotec-done" class="btn btn-primary d-inline-flex align-items-center gap-2 px-4 py-2 d-none">
                 @svg('heroicon-m-check', 'icp-icon-sm')
                 <span>Done</span>
             </button>
@@ -752,7 +765,7 @@
         </div>
 
         <p class="small mb-2" id="signotec-preview-label" style="display:none">Captured signature:</p>
-        <img id="signotec-preview" alt="Captured signature" style="display:none;height:70px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px" class="mb-2 d-block">
+        <img id="signotec-preview" alt="Captured signature" style="height:70px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px" class="mb-2 d-block d-none">
 
         <input type="hidden" name="signature" id="signature-input">
         @error('signature') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
@@ -760,7 +773,7 @@
 </div>
 
 <div class="d-flex justify-content-between align-items-center mb-4" id="form-stepper-nav">
-    <button type="button" id="js-step-prev" class="btn icp-btn-muted px-4 py-2 fw-bold d-inline-flex align-items-center gap-2" style="display:none">
+    <button type="button" id="js-step-prev" class="btn icp-btn-muted px-4 py-2 fw-bold d-inline-flex align-items-center gap-2 d-none">
         @svg('heroicon-m-arrow-left', 'icp-icon-sm')
         <span>Previous</span>
     </button>
@@ -768,6 +781,15 @@
         <span>Next</span>
         @svg('heroicon-m-arrow-right', 'icp-icon-sm')
     </button>
+</div>
+
+{{-- Shown while the form is submitting, so nothing on the page can be
+    edited or clicked again until the request finishes. --}}
+<div id="icp-form-loading-overlay" class="icp-loading-overlay d-none">
+    <div class="d-flex flex-column align-items-center gap-3">
+        <div class="spinner-border" role="status"></div>
+        <p class="mb-0">{{ $item ? 'Saving changes…' : 'Enrolling student…' }}</p>
+    </div>
 </div>
 
 @push('styles')
@@ -839,8 +861,9 @@
                 }
             });
 
-            // ── Highest qualification: show the admin-set description format
-            //    hint for the chosen Educational Board ──────────────────────────
+            // ── Qualification Description: show the admin-set description
+            //    format hint for the chosen Educational Board, and a button
+            //    to copy it, next to it ───────────────────────────────────
             //    Delegated via jQuery (not document.addEventListener) because
             //    Select2 reports a selection by triggering a jQuery-only
             //    "change" event on the underlying <select> — it never fires
@@ -850,9 +873,56 @@
                 var formatHints = @json($documentTypeFormatHints);
 
                 $(document).on('change', '.js-document-type-select', function () {
-                    var hint = this.closest('.qualification-row').querySelector('.js-format-hint');
-                    if (hint) {
-                        hint.textContent = formatHints[this.value] || '';
+                    var row = this.closest('.qualification-row');
+                    var hint = row.querySelector('.js-format-hint');
+                    var copyButton = row.querySelector('.js-copy-hint');
+                    if (!hint) { return; }
+
+                    var text = formatHints[this.value] || '';
+                    hint.textContent = text;
+                    if (copyButton) { copyButton.hidden = ! text; }
+                });
+            })();
+
+            // ── Qualification Description: copy the format hint to the
+            //    clipboard so it's easy to paste as a starting point ──────
+            (function () {
+                document.addEventListener('click', function (e) {
+                    var button = e.target.closest('.js-copy-hint');
+                    if (! button) { return; }
+
+                    var hint = button.closest('.qualification-row')?.querySelector('.js-format-hint');
+                    var text = hint ? hint.textContent.trim() : '';
+                    if (! text) { return; }
+
+                    var showCopied = function () {
+                        button.querySelector('.js-copy-icon-default')?.classList.add('d-none');
+                        button.querySelector('.js-copy-icon-success')?.classList.remove('d-none');
+                        clearTimeout(button._copyResetTimeout);
+                        button._copyResetTimeout = setTimeout(function () {
+                            button.querySelector('.js-copy-icon-default')?.classList.remove('d-none');
+                            button.querySelector('.js-copy-icon-success')?.classList.add('d-none');
+                        }, 1200);
+                    };
+
+                    if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(text).then(showCopied);
+                        return;
+                    }
+
+                    // Fallback for non-secure contexts (e.g. plain http:// on
+                    // a LAN) where the Clipboard API isn't available.
+                    var textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    textarea.style.position = 'fixed';
+                    textarea.style.opacity = '0';
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    try {
+                        document.execCommand('copy');
+                        showCopied();
+                    } finally {
+                        document.body.removeChild(textarea);
                     }
                 });
             })();
@@ -1160,8 +1230,12 @@
                         await STPadServerLibDefault.startSignature(sigParams);
 
                         setStatus('Sign on the pad now, then press "Done" here.');
-                        startButton.style.display = 'none';
-                        doneButton.style.display = 'inline-flex';
+                        // startButton/doneButton also carry Bootstrap's
+                        // `.d-inline-flex` (display:inline-flex !important),
+                        // which beats a plain inline style, so hiding/showing
+                        // them has to go through the `.d-none` utility instead.
+                        startButton.classList.add('d-none');
+                        doneButton.classList.remove('d-none');
                         retryButton.style.display = 'inline-block';
                     } catch (error) {
                         setStatus(describeError('Could not start signing on the pad.', error));
@@ -1200,14 +1274,14 @@
 
                         signatureInput.value = dataUrl;
                         preview.src = dataUrl;
-                        preview.style.display = 'block';
+                        preview.classList.remove('d-none'); // also carries `.d-block` — see note above
                         previewLabel.style.display = 'block';
 
                         await STPadServerLibDefault.closePad(new STPadServerLibDefault.Params.closePad(padIndex));
                         STPadServerLibCommons.destroyConnection();
 
                         setStatus('Signature captured. Reload this page to sign again.');
-                        doneButton.style.display = 'none';
+                        doneButton.classList.add('d-none');
                         retryButton.style.display = 'none';
                     } catch (error) {
                         setStatus(describeError('Could not read the signature from the pad.', error));
@@ -1273,10 +1347,58 @@
                     btn.querySelector('.js-step-label').style.fontWeight = active ? '700' : '400';
                 });
 
-                prevButton.style.display = number === 1 ? 'none' : '';
-                nextButton.style.display = number === steps.length ? 'none' : '';
+                // prev/next/submit all carry a Bootstrap `.d-inline-flex`
+                // (display:inline-flex !important), which — like `.d-flex`
+                // on the stepper nav above — beats a plain inline style, so
+                // hiding them has to go through the `.d-none` utility
+                // (confirmed later in source than `.d-inline-flex` in the
+                // compiled CSS, so it wins the tie) instead.
+                prevButton.classList.toggle('d-none', number === 1);
+                nextButton.classList.toggle('d-none', number === steps.length);
                 if (submitButton) {
-                    submitButton.style.display = number === steps.length ? '' : 'none';
+                    submitButton.classList.toggle('d-none', number !== steps.length);
+                }
+            }
+
+            // ── Submit button: disabled until every required field across
+            //    the whole form (not just the visible step) is filled in ──
+            if (submitButton) {
+                var enrollmentForm = submitButton.closest('form');
+
+                if (enrollmentForm) {
+                    var refreshSubmitState = function () {
+                        submitButton.disabled = ! enrollmentForm.checkValidity();
+                    };
+
+                    refreshSubmitState();
+
+                    // Native input/change cover typed fields and plain
+                    // <select>s; jQuery 'change' is also needed because
+                    // Select2 reports a selection via a jQuery-only trigger
+                    // that a plain addEventListener never sees (see the
+                    // format-hint listener above for the same issue). The
+                    // click listener re-checks on the next frame after
+                    // anything that can add or remove a required field — a
+                    // new qualification row, a removed document, ...
+                    enrollmentForm.addEventListener('input', refreshSubmitState);
+                    enrollmentForm.addEventListener('change', refreshSubmitState);
+                    $(enrollmentForm).on('change', refreshSubmitState);
+                    enrollmentForm.addEventListener('click', function () {
+                        window.requestAnimationFrame(refreshSubmitState);
+                    });
+
+                    // Full-page overlay while the request is in flight, so
+                    // nothing can be edited or clicked again — including a
+                    // second click on submit itself. This does NOT set the
+                    // `disabled` attribute on the form's own fields: a
+                    // disabled field is dropped from the submitted data
+                    // entirely, which would silently blank it out server-side.
+                    var loadingOverlay = document.getElementById('icp-form-loading-overlay');
+                    enrollmentForm.addEventListener('submit', function () {
+                        if (! enrollmentForm.checkValidity()) { return; }
+                        if (loadingOverlay) { loadingOverlay.classList.remove('d-none'); }
+                        submitButton.disabled = true;
+                    });
                 }
             }
 

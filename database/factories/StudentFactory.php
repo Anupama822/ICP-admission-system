@@ -17,9 +17,11 @@ class StudentFactory extends Factory
     public function definition(): array
     {
         return [
-            'admission_id' => fake()->unique()->numerify('########'),
             'admission_year_id' => AdmissionYear::factory(),
             'course_id' => Course::factory(),
+            'group' => 'C1',
+            'biometric_id' => null,
+            'university_registration_no' => null,
             'first_name' => fake()->firstName(),
             'middle_name' => null,
             'last_name' => fake()->lastName(),
@@ -31,14 +33,7 @@ class StudentFactory extends Factory
             'citizenship_issued_date' => null,
             'passport_number' => null,
             'passport_issued_date' => null,
-            'declared_date' => now()->format('Y-m-d'),
             'photo_path' => null,
-            'level' => '04',
-            'entry_type' => 'Standard',
-            'semester' => fake()->randomElement(['Spring', 'Summer', 'Autumn']),
-            'group' => 'C1',
-            'biometric_id' => null,
-            'university_registration_no' => null,
             'permanent_address' => fake()->address(),
             'corresponding_address' => fake()->address(),
             'mobile' => fake()->numerify('98########'),

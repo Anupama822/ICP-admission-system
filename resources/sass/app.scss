@@ -773,6 +773,57 @@ body {
   &:hover { background: var(--icp-crimson-10); color: var(--btn-color); }
 }
 
+// Small icon-only button for inline actions next to helper text, e.g.
+// copying a format hint next to the Qualification Description field.
+.icp-btn-icon-xs {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--general-color);
+  border: none;
+
+  // An author stylesheet's plain `display` always beats the browser's own
+  // `[hidden] { display: none }` rule, regardless of selector specificity,
+  // so without this override a hidden copy button would show anyway.
+  &[hidden] { display: none; }
+
+  svg { width: 14px; height: 14px; }
+
+  &:hover { background: #f3f4f6; color: var(--btn-color); }
+}
+
+// Full-page overlay shown while a multi-step form (e.g. student enrollment)
+// is submitting, so the whole page reads as busy instead of letting the
+// admin edit fields or double-click submit while the request is in flight.
+// Hidden by default via the `.d-none` utility (not a plain style toggle —
+// see the note on prev/next/submit buttons in _form.blade.php for why that
+// matters), and JS only ever removes/adds that class.
+.icp-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, .85);
+
+  .spinner-border {
+    width: 3rem;
+    height: 3rem;
+    color: var(--btn-color);
+  }
+
+  p {
+    color: var(--heading-color);
+    font-weight: 600;
+  }
+}
+
 .icp-note {
   background: rgba(141, 34, 41, .05);
   border: 1px solid rgba(141, 34, 41, .12);

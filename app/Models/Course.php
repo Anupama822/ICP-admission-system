@@ -29,9 +29,9 @@ class Course extends Model
         ];
     }
 
-    public function students(): HasMany
+    public function enrollments(): HasMany
     {
-        return $this->hasMany(Student::class);
+        return $this->hasMany(Enrollment::class);
     }
 
     /**
